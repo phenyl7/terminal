@@ -67,51 +67,61 @@ def plot_stock_price(ticker, years, sma_period):
     plt.gcf().patch.set_facecolor('black')  # Background color of the figure
     plt.show(block=False)
 
+
 def plot_portfolio_performance_chart(years):
     end_date = datetime.now()
     start_date = end_date - timedelta(days=years * 365)
-
-    plt.figure(figsize=(12, 6))
     
-    total_value = 0  # Initialize total value for portfolio
+    num_stocks = len([ticker for ticker in portfolio if ticker != "1"])
+    stocks_per_page = 4
+    num_pages = (num_stocks + stocks_per_page - 1) // stocks_per_page
 
-    for ticker, details in portfolio.items():
-        if ticker == "1":  # Skip the "1" ticker
-            continue
+    print(f"Total pages: {num_pages}")
 
-        try:
-            stock_data = yf.download(ticker, start=start_date, end=end_date)
-            
-            if stock_data.empty:
-                print(f"No data found for ticker: {ticker}")
-                continue
+    # Iterate through pages
+    for page in range(num_pages):
+        plt.figure(figsize=(12, 12), facecolor='black')
+        
+        start_idx = page * stocks_per_page
+        end_idx = min(start_idx + stocks_per_page, num_stocks)
+        tickers_to_plot = [ticker for ticker in portfolio if ticker != "1"][start_idx:end_idx]
 
-            # Plot the stock price over time
-            plt.plot(stock_data.index, stock_data['Adj Close'], label=f'{ticker} Price')
-            
-            # Calculate total value of the portfolio
-            last_close_price = stock_data['Close'].iloc[-1]
-            total_value += details['shares'] * last_close_price
-            
-        except Exception as e:
-            print(f"Error processing {ticker}: {e}")
+        total_value = 0
+        subplot_index = 1
 
-    plt.title(f'Portfolio Performance Over the Last {years} Years', color='white')
-    plt.xlabel('Date', color='white')
-    plt.ylabel('Adjusted Close Price (Log Scale)', color='white')
-    plt.yscale('log')  # Set y-axis to logarithmic scale
-    plt.legend()
-    
-    plt.gca().set_facecolor('black')
-    plt.gca().tick_params(axis='both', colors='grey')
-    plt.grid(color='grey', linestyle='--', linewidth=0.5)
+        for ticker in tickers_to_plot:
+            try:
+                stock_data = yf.download(ticker, start=start_date, end=end_date)
+                
+                if stock_data.empty:
+                    print(f"No data found for ticker: {ticker}")
+                    continue
 
-    plt.gcf().patch.set_facecolor('black')
-    
-    # Display the total portfolio value on the chart
-    plt.figtext(0.1, 0.02, f'Total Portfolio Value: ${total_value:,.2f}', color='orange', fontsize=12)
-    
-    plt.show(block=False)
+                ax = plt.subplot(stocks_per_page, 1, subplot_index)
+                ax.plot(stock_data.index, stock_data['Adj Close'], label=f'{ticker} Price', color='orange')
+                ax.set_title(f'{ticker} Price Over Time', color='white')
+                ax.set_ylabel('Adjusted Close Price', color='white')
+                ax.legend()
+                ax.set_facecolor('black')
+                ax.tick_params(axis='both', colors='grey')
+                ax.grid(color='grey', linestyle='--', linewidth=0.5)
+
+                subplot_index += 1
+                
+                last_close_price = stock_data['Close'].iloc[-1]
+                total_value += portfolio[ticker]['shares'] * last_close_price
+                
+            except Exception as e:
+                print(f"Error processing {ticker}: {e}")
+
+        plt.subplots_adjust(hspace=0.5)
+        plt.figtext(0.1, 0.02, f'Total Portfolio Value (Page {page + 1}/{num_pages}): ${total_value:,.2f}', color='orange', fontsize=12)
+        
+        plt.show(block=False)
+        
+        if page < num_pages - 1:
+            input("Press Enter to continue to the next page...")
+
 
 
 
