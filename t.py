@@ -67,7 +67,56 @@ def plot_stock_price(ticker, years, sma_period):
     plt.gcf().patch.set_facecolor('black')  # Background color of the figure
     plt.show(block=False)
 
-def view_portfolio():
+def plot_portfolio_performance_chart(years):
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=years * 365)
+
+    plt.figure(figsize=(12, 6))
+    
+    total_value = 0  # Initialize total value for portfolio
+
+    for ticker, details in portfolio.items():
+        if ticker == "1":  # Skip the "1" ticker
+            continue
+
+        try:
+            stock_data = yf.download(ticker, start=start_date, end=end_date)
+            
+            if stock_data.empty:
+                print(f"No data found for ticker: {ticker}")
+                continue
+
+            # Plot the stock price over time
+            plt.plot(stock_data.index, stock_data['Adj Close'], label=f'{ticker} Price')
+            
+            # Calculate total value of the portfolio
+            last_close_price = stock_data['Close'].iloc[-1]
+            total_value += details['shares'] * last_close_price
+            
+        except Exception as e:
+            print(f"Error processing {ticker}: {e}")
+
+    plt.title(f'Portfolio Performance Over the Last {years} Years', color='white')
+    plt.xlabel('Date', color='white')
+    plt.ylabel('Adjusted Close Price (Log Scale)', color='white')
+    plt.yscale('log')  # Set y-axis to logarithmic scale
+    plt.legend()
+    
+    plt.gca().set_facecolor('black')
+    plt.gca().tick_params(axis='both', colors='grey')
+    plt.grid(color='grey', linestyle='--', linewidth=0.5)
+
+    plt.gcf().patch.set_facecolor('black')
+    
+    # Display the total portfolio value on the chart
+    plt.figtext(0.1, 0.02, f'Total Portfolio Value: ${total_value:,.2f}', color='orange', fontsize=12)
+    
+    plt.show(block=False)
+
+
+
+
+def portfolio_check():
     data = []
     total_value = 0
     fig, ax = plt.subplots(figsize=(12, len(portfolio) * 0.6 + 2))
@@ -140,9 +189,9 @@ def main():
         print("[7] 10-K              [8] 10-Q")
         print("[9] StockCharts       [10] Insiders")
         print("[11] Quote            [12] Financials")
-        print("[13] Ratios           [14] Portfolio")
+        print("[13] Ratios           [14] Portfolio Performance Chart")
         print("[15] New Entry        [16] Edit Port")
-        print("[q] Quit")
+        print("[17] Portfolio Check  [q] Quit")
 
         choice = input("Choose an option: ").strip()
         
@@ -191,28 +240,35 @@ def main():
             webbrowser.open(url)
         elif choice == '11':
             ticker = input("Enter ticker: ").strip().upper()
-            url = f"https://www.roic.ai/quote/{ticker}"
+            url = f"https://www.roic.ai/quote/{ticker}/financials"
             webbrowser.open(url)
         elif choice == '12':
             ticker = input("Enter ticker: ").strip().upper()
-            url = f"https://www.roic.ai/quote/{ticker}/financials"
+            url = f"https://www.roic.ai/quote/{ticker}"
             webbrowser.open(url)
         elif choice == '13':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"https://www.roic.ai/quote/{ticker}/ratios"
             webbrowser.open(url)
         elif choice == '14':
-            view_portfolio()
+            try:
+                years = int(input("Enter number of years for portfolio performance chart: ").strip())
+                if years <= 0:
+                    raise ValueError("The number of years must be a positive integer.")
+            except ValueError as e:
+                print(f"Invalid input: {e}")
+            else:
+                plot_portfolio_performance_chart(years)
         elif choice == '15':
             add_position()
         elif choice == '16':
             remove_position()
+        elif choice == '17':
+            portfolio_check()
         elif choice == 'q':
             break
         else:
-            print("Invalid option.")
-        
-        plt.pause(1)
+            print("Invalid choice, please try again.")
 
 if __name__ == "__main__":
     main()
