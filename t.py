@@ -313,6 +313,218 @@ def news():
         except ValueError:
             print("Invalid input. Please enter valid numbers separated by commas.")
 
+def options():
+    import yfinance as yf
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    def get_options_chain_for_selected_date(ticker_symbol, selected_index):
+        ticker = yf.Ticker(ticker_symbol)
+
+        # Fetch available expiration dates
+        expiration_dates = ticker.options
+
+        # Check if the selected index is valid
+        if selected_index < 0 or selected_index >= len(expiration_dates):
+            print("Invalid selection. Please choose a number from the list.")
+            return
+
+        # Get the selected expiration date
+        expiration_date = expiration_dates[selected_index]
+        print(f"\nFetching options chain for {ticker_symbol} on {expiration_date}...")
+
+        # Fetch the options chain for the selected expiration date
+        option_chain = ticker.option_chain(expiration_date)
+
+        # Set pandas display options to show all rows and columns
+        pd.set_option('display.max_rows', None)
+        pd.set_option('display.max_columns', None)
+        pd.set_option('display.width', None)  # Ensures wide tables are not truncated
+
+        # Print call options
+        print(f"\nCall options for {ticker_symbol} on {expiration_date}:")
+        print(option_chain.calls)
+
+        # Print put options
+        print(f"\nPut options for {ticker_symbol} on {expiration_date}:")
+        print(option_chain.puts)
+
+        # Reset pandas display options to default after use
+        pd.reset_option('display.max_rows')
+        pd.reset_option('display.max_columns')
+        pd.reset_option('display.width')
+
+        # Prompt user to select an option based on the contract symbol
+        contract_symbol = input("\nEnter the contract symbol of the option to analyze: ").strip()
+
+        # Check if the contract symbol is valid and select the option data
+        if contract_symbol in option_chain.calls['contractSymbol'].values:
+            option_data = option_chain.calls[option_chain.calls['contractSymbol'] == contract_symbol]
+            option_type = 'Call'
+        elif contract_symbol in option_chain.puts['contractSymbol'].values:
+            option_data = option_chain.puts[option_chain.puts['contractSymbol'] == contract_symbol]
+            option_type = 'Put'
+        else:
+            print("Invalid contract symbol. Please try again.")
+            return
+
+        # Generate the payoff diagram
+        strike_price = option_data['strike'].values[0]
+        premium = option_data['lastPrice'].values[0]
+
+        # Get the range of stock prices for the plot
+        stock_prices = np.linspace(strike_price - 50, strike_price + 50, 100)
+        payoff = np.maximum(stock_prices - strike_price, 0) - premium if option_type == 'Call' else np.maximum(strike_price - stock_prices, 0) - premium
+
+        # Plot the payoff diagram
+        plt.figure(figsize=(12, 8))
+        
+        # Plotting call payoff with conditional coloring
+        plt.plot(stock_prices, payoff, label=f'{option_type} Option Payoff')
+
+        # Shade the area between the y=0 line and the payoff line
+        plt.fill_between(stock_prices, payoff, where=(payoff > 0), color='green', alpha=0.3)
+        plt.fill_between(stock_prices, payoff, where=(payoff < 0), color='red', alpha=0.3)
+
+        # Add horizontal line at y=0
+        plt.axhline(0, color='orange', linestyle='--', linewidth=1.5, label='Break-Even Point')
+
+        # Add vertical line at the strike price
+        plt.axvline(strike_price, color='orange', linestyle='--', linewidth=1.5, label=f'Strike Price (${strike_price})')
+
+        plt.title(f'{option_type} Option Payoff Diagram', color='grey')
+        plt.xlabel('Stock Price', color='grey')
+        plt.ylabel('Payoff ($)', color='grey')
+        plt.legend()
+        plt.grid(True)
+        
+        # Customizing colors
+        plt.gca().set_facecolor('black')  # Set background color to black
+        plt.gca().tick_params(axis='both', colors='grey')  # Set axis and labels to grey
+        plt.gcf().patch.set_facecolor('black')  # Set figure background color to black
+
+        # Custom color based on payoff position
+        plt.plot(stock_prices[payoff <= 0], payoff[payoff <= 0], color='red', label='Payoff Below Break-Even')
+        plt.plot(stock_prices[payoff > 0], payoff[payoff > 0], color='lime', label='Payoff Above Break-Even')
+
+        plt.show()
+
+    # Prompt user for ticker symbol
+    ticker_symbol = input("Enter the stock ticker symbol (e.g., AAPL): ").strip().upper()
+
+    # Create an instance of the Ticker class
+    ticker = yf.Ticker(ticker_symbol)
+
+    # Fetch available expiration dates
+    expiration_dates = ticker.options
+
+    # List expiration dates with corresponding numbers
+    print(f"\nAvailable expiration dates for {ticker_symbol}:")
+    for index, date in enumerate(expiration_dates):
+        print(f"{date} [{index}]")
+
+    # Prompt user to select an expiration date by number
+    try:
+        selected_index = int(input("Enter the number corresponding to the expiration date: ").strip())
+        get_options_chain_for_selected_date(ticker_symbol, selected_index)
+    except ValueError:
+        print("Invalid input. Please enter a number.")
+
+def sim():
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import yfinance as yf
+    import datetime
+
+    # Prompt for user input
+    ticker = input("Enter ticker: ").upper()
+    days = int(input("How many days: "))
+    simulation_type = int(input("Choose simulation type [ 1=CF | 2=CF(VA) | 3=GBM ]: "))
+
+    # Calculate dates dynamically
+    end_date = datetime.datetime.now().strftime('%Y-%m-%d')  # Today's date
+    start_date = (datetime.datetime.now() - datetime.timedelta(days=days)).strftime('%Y-%m-%d')  # Date days ago
+
+    # Fetch the historical equity data
+    try:
+        historical_data = yf.download(ticker, start=start_date, end=end_date)
+        if historical_data.empty:
+            raise ValueError("No data found for ticker.")
+    except Exception as e:
+        print(f"Error fetching data: {e}")
+        exit()
+
+    # Get the starting price and calculate volatility
+    starting_price = historical_data['Adj Close'].iloc[0]
+    returns = historical_data['Adj Close'].pct_change().dropna()
+    volatility = returns.std()  # Historical volatility (annualized)
+    drift = returns.mean()  # Average daily return (drift)
+
+    # Define the number of simulations
+    forloops = 100
+
+    # Function to simulate geometric random walk with volatility adjustment
+    def simulate_geometric_random_walk_volatility(start_price, days, volatility):
+        prices = [start_price]
+        for _ in range(days):
+            daily_return = np.random.normal(0, volatility)  # Use normal distribution with historical volatility
+            prices.append(prices[-1] * (1 + daily_return))
+        return prices
+
+    # Function to simulate geometric random walk with coin-flip strategy
+    def simulate_geometric_random_walk_coin_flip(start_price, days):
+        prices = [start_price]
+        for _ in range(days):
+            p = np.random.uniform(0, 1)
+            if p > 0.5:
+                prices.append(prices[-1] * 1.01)  # Increase by 1% for 'heads'
+            else:
+                prices.append(prices[-1] * 0.99)  # Decrease by 1% for 'tails'
+        return prices
+
+    # Function to simulate geometric Brownian motion (GBM)
+    def simulate_geometric_brownian_motion(start_price, drift, volatility, days):
+        dt = 1/252  # Time increment (daily)
+        prices = [start_price]
+        for _ in range(days):
+            rand_num = np.random.randn()
+            daily_return = (drift - 0.5 * volatility**2) * dt + volatility * np.sqrt(dt) * rand_num
+            prices.append(prices[-1] * np.exp(daily_return))  # GBM formula for price movement
+        return prices
+
+    # Create a plot
+    fig = plt.figure(figsize=(14, 7))
+    ax = fig.add_subplot(111)
+
+    # Set plot background color and text color
+    fig.patch.set_facecolor('black')
+    ax.set_facecolor('black')
+
+    colors = plt.cm.jet(np.linspace(0, 1, forloops))
+
+    # Run the chosen simulation type
+    for i in range(forloops):
+        if simulation_type == 1:
+            simulated_prices = simulate_geometric_random_walk_coin_flip(starting_price, days)
+        elif simulation_type == 2:
+            simulated_prices = simulate_geometric_random_walk_volatility(starting_price, days, volatility)
+        elif simulation_type == 3:
+            simulated_prices = simulate_geometric_brownian_motion(starting_price, drift, volatility, days)
+        else:
+            print("Invalid simulation type selected.")
+            exit()
+        plt.plot(simulated_prices, color=colors[i])
+
+    # Customize the plot
+    plt.title(f"Simulated Stock Price Movement for {ticker} over {days} Days", color='grey')
+    plt.xlabel('Day', color='grey')
+    plt.ylabel('Price', color='grey')
+    plt.grid(True, color='grey', linestyle='--')
+
+    # Show plot
+    plt.tight_layout()
+    plt.show()
     
 
 def remove_position():
@@ -336,7 +548,8 @@ def main():
         print("[13] Ratios           [14] Portfolio Performance Chart")
         print("[15] New Entry        [16] Edit Port")
         print("[17] Good Morning     [18] News")
-        print("[q] quit")
+        print("[19] Options          [20] Simulations")
+        print ("[q] Exit")
 
         choice = input("Choose an option: ").strip()
         
@@ -412,6 +625,10 @@ def main():
             gm()
         elif choice == '18':
             news()
+        elif choice == '19':
+            options()
+        elif choice == '20':
+            sim()
         elif choice == 'q':
             break
         else:
