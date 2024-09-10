@@ -126,52 +126,122 @@ def plot_portfolio_performance_chart(years):
 
 
 
-def portfolio_check():
-    data = []
-    total_value = 0
-    fig, ax = plt.subplots(figsize=(12, len(portfolio) * 0.6 + 2))
-    ax.axis('off')
+def gm():
+    import json
+    import yfinance as yf
+    import webbrowser
+    from datetime import datetime
 
-    table_data = []
-    for ticker, details in portfolio.items():
-        stock_data = get_stock_data(ticker)
-        last_close_price = stock_data['price_current']
+    # Define ANSI color codes
+    YELLOW = '\033[33m'
+    LIME_GREEN = '\033[92m'
+    NEON_RED = '\033[91m'
+    RESET = '\033[0m'
+
+    def get_greeting():
+        now = datetime.now()
+        hour = now.hour
+
+        if 5 <= hour < 12:
+            return "Good morning!"
+        elif 12 <= hour < 17:
+            return "Good afternoon!"
+        else:
+            return "Good evening!"
+
+    def open_websites():
+        urls = [
+            "https://x.com",
+            "https://www.reddit.com/r/wallstreetbets/",
+            "https://news.google.com/home"
+        ]
         
-        if last_close_price is not None:
-            dollar_change = (last_close_price - details['cost_basis']) * details['shares']
-            percent_change = ((last_close_price - details['cost_basis']) / details['cost_basis']) * 100
-            position_value = details['shares'] * last_close_price
-            total_value += position_value
+        for url in urls:
+            webbrowser.open_new_tab(url)
 
-            table_data.append([
-                ticker, 
-                round(details['shares'], 2),  # Round shares to 2 decimal places
-                round(dollar_change, 2), 
-                round(percent_change, 2), 
-                round(position_value, 2)
-            ])
-    
-    df = pd.DataFrame(table_data, columns=['Ticker', 'Shares', '$ ∆', '% ∆', 'PV'])
-    
-    total_row = pd.DataFrame([['tpv', '', '', '', f'${total_value:,.2f}']], columns=df.columns)
-    df = pd.concat([df, total_row], ignore_index=True)
-    
-    print(df)
-    
-    table = ax.table(cellText=df.values, colLabels=df.columns, cellLoc='center', loc='center', bbox=[0, 0, 1, 1])
-    
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
-    table.scale(1.2, 1.2)
-    
-    for (i, j), cell in table._cells.items():
-        cell.set_text_props(color='orange')  # Neon green text
-        cell.set_facecolor('black')  # Black background
-        cell.set_edgecolor('gray')  # Gray grid lines
-    
-    plt.title("Current Portfolio", fontsize=10, color='orange')
-    plt.gcf().set_facecolor('black')
-    plt.show(block=False)
+    def load_portfolio(file_path):
+        with open(file_path, 'r') as file:
+            return json.load(file)
+
+    def get_stock_data(ticker):
+        stock = yf.Ticker(ticker)
+        data = stock.history(period='1d', interval='1m')
+        
+        # Latest price
+        latest_price = data['Close'].iloc[-1] if not data.empty else None
+        
+        # Percent change since market open
+        if len(data) > 1:
+            opening_price = data['Open'].iloc[0]
+            percent_change_today = ((latest_price - opening_price) / opening_price) * 100
+        else:
+            percent_change_today = None
+        
+        return latest_price, percent_change_today
+
+    def calculate_percent_change(cost_basis, current_price):
+        return ((current_price - cost_basis) / cost_basis) * 100
+
+    def calculate_performance(portfolio):
+        performance = {}
+        total_value = 0
+        for ticker, info in portfolio.items():
+            if ticker == "1":
+                continue
+            
+            latest_price, percent_change_today = get_stock_data(ticker)
+            if latest_price is not None:
+                percent_change = calculate_percent_change(info['cost_basis'], latest_price)
+                value = info['shares'] * latest_price
+                total_value += value
+                
+                performance[ticker] = {
+                    'shares': info['shares'],
+                    'cost_basis': info['cost_basis'],
+                    'current_price': latest_price,
+                    'percent_change': percent_change,
+                    'percent_change_today': percent_change_today,
+                    'value': value
+                }
+            else:
+                performance[ticker] = {
+                    'shares': info['shares'],
+                    'cost_basis': info['cost_basis'],
+                    'current_price': 'N/A',
+                    'percent_change': 'N/A',
+                    'percent_change_today': 'N/A',
+                    'value': 'N/A'
+                }
+        
+        return performance, total_value
+
+    def colorize_percent(percent):
+        if isinstance(percent, (int, float)):
+            return f"{LIME_GREEN}{percent:.2f}%{RESET}" if percent >= 0 else f"{NEON_RED}{percent:.2f}%{RESET}"
+        return percent
+
+    def print_performance(performance, total_value):
+        for ticker, data in performance.items():
+            print(f"{YELLOW}Ticker: {ticker.upper()}{RESET}")
+            print(f"Shares: {data['shares']}")
+            print(f"Cost Basis: ${data['cost_basis']:.2f}")
+            print(f"Current Price: ${data['current_price']:.2f}" if data['current_price'] != 'N/A' else "Current Price: N/A")
+            print(f"Δ: {colorize_percent(data['percent_change'])}" if data['percent_change'] != 'N/A' else "Percent Change: N/A")
+            print(f"1D %Δ: {colorize_percent(data['percent_change_today'])}" if data['percent_change_today'] != 'N/A' else "Percent Change Today: N/A")
+            print(f"Value: ${data['value']:.2f}" if data['value'] != 'N/A' else "Value: N/A")
+            print()
+        
+        print(f"Total Portfolio Value: ${total_value:.2f}")
+
+    if __name__ == "__main__":
+        print(get_greeting())
+        open_websites()
+
+        portfolio_file = 'portfolio.json'  # Path to your portfolio.json file
+        portfolio = load_portfolio(portfolio_file)
+        performance, total_value = calculate_performance(portfolio)
+        print_performance(performance, total_value)
+
 
 def add_position():
     ticker = input("Enter ticker: ")
@@ -180,6 +250,70 @@ def add_position():
     portfolio[ticker] = {'shares': shares, 'cost_basis': cost_basis}
     save_portfolio(portfolio)
     print(f"Added {ticker} to portfolio.")
+
+def news():
+    import yfinance as yf
+    import webbrowser
+
+    # ANSI escape codes for colors
+    YELLOW = '\033[33m'    # Yellow text
+    WHITE = '\033[97m'     # White text
+    RESET = '\033[0m'      # Reset to default color
+
+    def fetch_news(ticker_symbol):
+        ticker = yf.Ticker(ticker_symbol)
+        news = ticker.news
+
+        headlines = []
+        for article in news[:8]:  # Always fetch 8 headlines
+            title = article.get('title', 'No title available')
+            link = article.get('link', 'No link available')
+            publisher = article.get('publisher', 'No publisher available')
+            headlines.append((title, link, publisher))
+            
+        return headlines
+
+    def display_headlines(ticker, headlines, start_number):
+        for idx, (title, _, publisher) in enumerate(headlines, start=start_number):
+            print(f"[{idx}] {ticker} - {YELLOW}Title: {title}{RESET}")
+            print(f"    {WHITE}Publisher: {publisher}{RESET}")
+            print()
+
+    def search_links_on_google(links):
+        for link in links:
+            webbrowser.open_new_tab(link)
+
+    # Get ticker symbols from the user, separated by commas
+    ticker_symbols = input("Enter ticker symbols separated by commas (e.g., AAPL,MSFT,GOOGL): ")
+    ticker_symbols = [symbol.strip() for symbol in ticker_symbols.split(',')]
+
+    all_headlines = []
+    start_number = 1
+    for symbol in ticker_symbols:
+        print(f"\nFetching news for {symbol}...")
+        headlines = fetch_news(symbol)
+        all_headlines.extend((symbol, title, link) for title, link, publisher in headlines)
+        # Display headlines with numbering and stock ticker
+        display_headlines(symbol, headlines, start_number)
+        start_number += len(headlines)
+
+    # Prompt the user to search specific titles
+    while True:
+        try:
+            numbers_input = input("Enter the numbers of the titles you want to search, separated by commas (e.g., 1,3,5): ")
+            numbers = [int(num.strip()) for num in numbers_input.split(',')]
+
+            # Validate and search links
+            if all(1 <= number <= len(all_headlines) for number in numbers):
+                links = [all_headlines[number - 1][2] for number in numbers]
+                search_links_on_google(links)
+                break
+            else:
+                print(f"Invalid numbers. Please enter numbers between 1 and {len(all_headlines)}.")
+        except ValueError:
+            print("Invalid input. Please enter valid numbers separated by commas.")
+
+    
 
 def remove_position():
     ticker = input("Enter ticker to remove: ")
@@ -193,7 +327,7 @@ def remove_position():
 def main():
     while True:
         print("\nMenu:")
-        print("[1] Chart             [2] News")
+        print("[1] Chart             [2] Finviz News")
         print("[3] Commodities       [4] Crypto")
         print("[5] SA                [6] Finviz")
         print("[7] 10-K              [8] 10-Q")
@@ -201,7 +335,8 @@ def main():
         print("[11] Quote            [12] Financials")
         print("[13] Ratios           [14] Portfolio Performance Chart")
         print("[15] New Entry        [16] Edit Port")
-        print("[17] Portfolio Check  [q] Quit")
+        print("[17] Good Morning     [18] News")
+        print("[q] quit")
 
         choice = input("Choose an option: ").strip()
         
@@ -274,7 +409,9 @@ def main():
         elif choice == '16':
             remove_position()
         elif choice == '17':
-            portfolio_check()
+            gm()
+        elif choice == '18':
+            news()
         elif choice == 'q':
             break
         else:
