@@ -123,9 +123,6 @@ def plot_portfolio_performance_chart(years):
             input("Press Enter to continue to the next page...")
 
 
-
-
-
 def gm():
     import json
     import yfinance as yf
@@ -235,12 +232,19 @@ def gm():
 
     if __name__ == "__main__":
         print(get_greeting())
-        open_websites()
-
+        
         portfolio_file = 'portfolio.json'  # Path to your portfolio.json file
         portfolio = load_portfolio(portfolio_file)
         performance, total_value = calculate_performance(portfolio)
         print_performance(performance, total_value)
+        
+        # Prompt for opening websites
+        response = input("Open x, wsb, and google news? (y/n): ").strip().lower()
+        if response == 'y':
+            open_websites()
+
+
+
 
 
 def add_position():
@@ -620,18 +624,94 @@ def cc():
     index_performance = get_data(index_tickers)
     print_performance(index_performance)
 
+def des():
+    import yfinance as yf
+    from colorama import Fore, Style, init
+    import textwrap
+    import pandas as pd
+
+    # Initialize colorama
+    init(autoreset=True)
+
+    # Define color
+    blue = Fore.BLUE
+
+    def print_colored_percentage(change, label):
+        if change >= 0:
+            color = Fore.GREEN
+        else:
+            color = Fore.RED
+        print(f"{blue}{label}: {color}{change:.2f}%{Style.RESET_ALL}")
+
+    def get_stock_info(ticker):
+        stock = yf.Ticker(ticker)
+        
+        # Get stock info
+        info = stock.info
+        price = info.get('currentPrice', 'N/A')
+        market_cap = info.get('marketCap', 'N/A')
+        
+        # Calculate percent changes
+        history = stock.history(period="5y")
+        if len(history) == 0:
+            print("No historical data available.")
+            return
+        
+        today_price = history.iloc[-1]['Close']
+
+        # Safe calculation with available data
+        def safe_calculate_change(past_price, current_price):
+            return ((current_price - past_price) / past_price) * 100 if past_price else 0
+
+        # 1 Day Change
+        one_day_change = safe_calculate_change(history.iloc[-2]['Close'] if len(history) > 1 else today_price, today_price)
+        
+        # 6 Months Change
+        six_months_ago_index = -126 if len(history) > 126 else 0
+        six_months_ago_price = history.iloc[six_months_ago_index]['Close']
+        six_month_change = safe_calculate_change(six_months_ago_price, today_price)
+
+        # YTD Change
+        start_of_year_price = history[history.index.year == history.index[-1].year].iloc[0]['Close'] if len(history) > 0 else today_price
+        ytd_change = safe_calculate_change(start_of_year_price, today_price)
+        
+        # 3 Years Change
+        three_years_ago_index = history.index <= (history.index[-1] - pd.DateOffset(years=3))
+        if any(three_years_ago_index):
+            three_years_ago_price = history.loc[three_years_ago_index].iloc[0]['Close']
+            three_year_change = safe_calculate_change(three_years_ago_price, today_price)
+        else:
+            three_year_change = 0
+
+        # Print stock info
+        description = info.get('longBusinessSummary', 'Description not available.')
+        print(f"\n{blue}Description:{Style.RESET_ALL}\n{textwrap.fill(description, width=80)}")
+        print(f"{blue}Price:{Style.RESET_ALL} ${price:.2f}")
+        print(f"{blue}Market Cap:{Style.RESET_ALL} ${market_cap / 1e9:.2f} Billion")
+
+        # Print percent changes
+        print_colored_percentage(one_day_change, "1D Change")
+        print_colored_percentage(six_month_change, "6M Change")
+        print_colored_percentage(ytd_change, "YTD Change")
+        print_colored_percentage(three_year_change, "3Y Change")
+
+    if __name__ == "__main__":
+        ticker = input("Enter stock ticker: ").upper()
+        get_stock_info(ticker)
+
+
 def main():
     while True:
         print("\nMenu:")
         print("[1] Chart             [2] News")
-        print("[3] Markets           [4] Crypto")
+        print("[3] Markets           [4] Good Morning")
         print("[5] SA                [6] Finviz")
         print("[7] 10-K              [8] 10-Q")
         print("[9] StockCharts       [10] Insiders")
         print("[11] Quote            [12] Financials")
-        print("[13] Ratios           [14] Portfolio Performance Chart")
+        print("[13] Ratios           [14] Portfolio Vis")
         print("[15] New Entry        [16] Edit Port")
-        print("[17] Good Morning     [18] FinvizNews")
+        print("[17] DES              [18] Finviz News")
         print("[19] Options          [20] Simulations")
         print ("[q] Exit")
 
@@ -655,7 +735,7 @@ def main():
         elif choice == '3':
             cc()
         elif choice == '4':
-            webbrowser.open("https://tradingeconomics.com/crypto")
+            gm()
         elif choice == '5':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"https://seekingalpha.com/symbol/{ticker}"
@@ -706,7 +786,7 @@ def main():
         elif choice == '16':
             remove_position()
         elif choice == '17':
-            gm()
+            des()
         elif choice == '18':
             webbrowser.open("https://finviz.com/news.ashx")
         elif choice == '19':
