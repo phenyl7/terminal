@@ -244,9 +244,6 @@ def gm():
             open_websites()
 
 
-
-
-
 def add_position():
     ticker = input("Enter ticker: ")
     cost_basis = float(input("Enter cost basis: "))
@@ -699,6 +696,133 @@ def des():
         ticker = input("Enter stock ticker: ").upper()
         get_stock_info(ticker)
 
+def ovs():
+    import numpy as np
+    import pandas as pd
+    import yfinance as yf
+    import datetime as dt
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+
+    def option_chains(ticker):
+        """
+        Fetches option chains for all expiration dates for a given ticker symbol.
+        """
+        asset = yf.Ticker(ticker)
+        expirations = asset.options
+        chains = pd.DataFrame()
+
+        for expiration in expirations:
+            opt = asset.option_chain(expiration)
+            calls = opt.calls
+            calls['optionType'] = "call"
+            puts = opt.puts
+            puts['optionType'] = "put"
+            chain = pd.concat([calls, puts])
+            chain['expiration'] = pd.to_datetime(expiration) + pd.DateOffset(hours=23, minutes=59, seconds=59)
+            chains = pd.concat([chains, chain])
+
+        chains["daysToExpiration"] = (chains.expiration - dt.datetime.today()).dt.days + 1
+        return chains
+
+    def plot_volatility_surface(ax, options, min_date, max_date, option_type='call'):
+        """
+        Plots a 3D surface of implied volatility based on the selected date range and option type (call or put).
+        """
+        # Filter data based on the selected range and option type
+        expiration_dates = pd.to_datetime(options['expiration'])
+        min_date = pd.to_datetime(min_date)
+        max_date = pd.to_datetime(max_date)
+        
+        mask = (expiration_dates >= min_date) & (expiration_dates <= max_date) & (options['optionType'] == option_type)
+        filtered_options = options[mask]
+
+        # Pivot the dataframe to prepare for 3D plotting
+        surface = (
+            filtered_options[['daysToExpiration', 'strike', 'impliedVolatility']]
+            .pivot_table(values='impliedVolatility', index='strike', columns='daysToExpiration')
+            .dropna()
+        )
+
+        # Get the 1D values from the pivoted dataframe
+        x, y, z = surface.columns.values, surface.index.values, surface.values
+
+        # Return coordinate matrices from coordinate vectors
+        X, Y = np.meshgrid(x, y)
+
+        # Set labels
+        ax.set_xlabel('Days to Expiration', color='grey')
+        ax.set_ylabel('Strike Price', color='grey')
+        ax.set_zlabel('Implied Volatility', color='grey')
+        ax.set_title(f'{option_type.capitalize()} Implied Volatility Surface', color='grey')
+
+        # Plot
+        surf = ax.plot_surface(X, Y, z, cmap='viridis', edgecolor='none')
+
+        # Customize appearance
+        ax.set_facecolor('black')  # Set background color of the axes
+        ax.tick_params(axis='both', colors='grey')  # Set tick colors
+        ax.xaxis.pane.fill = False  # Hide the pane
+        ax.yaxis.pane.fill = False
+        ax.zaxis.pane.fill = False
+        ax.grid(True, color='grey')  # Set grid color
+
+        return surf
+
+    def main():
+        # Prompt user for ticker symbol
+        ticker_symbol = input("Enter the stock ticker symbol (e.g., AAPL): ").strip().upper()
+
+        # Get option chain data
+        options = option_chains(ticker_symbol)
+
+        # List available expiration dates
+        expiration_dates = pd.to_datetime(options['expiration']).sort_values().unique()
+        print("\nAvailable expiration dates:")
+        for index, date in enumerate(expiration_dates):
+            print(f"{index}: {date.date()}")
+
+        # Prompt user to select a range of expiration dates
+        try:
+            min_index = int(input("Enter the index of the earliest expiration date: ").strip())
+            max_index = int(input("Enter the index of the latest expiration date: ").strip())
+
+            if min_index < 0 or max_index >= len(expiration_dates) or min_index > max_index:
+                print("Invalid range selected.")
+                return
+
+            min_date = expiration_dates[min_index]
+            max_date = expiration_dates[max_index]
+
+            # Filter options for plotting
+            calls = options[options["optionType"] == "call"]
+            puts = options[options["optionType"] == "put"]
+
+            # Create a figure with two 3D subplots
+            fig = plt.figure(figsize=(18, 8))
+            fig.patch.set_facecolor('black')  # Set background color of the figure
+
+            # Call volatility surface
+            ax1 = fig.add_subplot(121, projection='3d')
+            surf1 = plot_volatility_surface(ax1, calls, min_date, max_date, 'call')
+
+            # Put volatility surface
+            ax2 = fig.add_subplot(122, projection='3d')
+            surf2 = plot_volatility_surface(ax2, puts, min_date, max_date, 'put')
+
+            # Add color bars
+            fig.colorbar(surf1, ax=ax1, shrink=0.5, aspect=10)
+            fig.colorbar(surf2, ax=ax2, shrink=0.5, aspect=10)
+
+            plt.show(block=False)
+        
+        except ValueError:
+            print("Invalid input. Please enter valid numbers.")
+
+    if __name__ == "__main__":
+        main()
+
+
 
 def main():
     while True:
@@ -713,7 +837,7 @@ def main():
         print("[15] New Entry        [16] Edit Port")
         print("[17] DES              [18] Finviz News")
         print("[19] Options          [20] Simulations")
-        print ("[q] Exit")
+        print("[21] OVS              [q] Exit")
 
         choice = input("Choose an option: ").strip()
         
@@ -793,6 +917,8 @@ def main():
             options()
         elif choice == '20':
             sim()
+        elif choice == '21':
+            ovs()
         elif choice == 'q':
             break
         else:
