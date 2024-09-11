@@ -703,6 +703,7 @@ def ovs():
     import datetime as dt
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
+    from matplotlib.colors import LinearSegmentedColormap
 
     def option_chains(ticker):
         """
@@ -756,8 +757,12 @@ def ovs():
         ax.set_zlabel('Implied Volatility', color='grey')
         ax.set_title(f'{option_type.capitalize()} Implied Volatility Surface', color='grey')
 
+        # Define custom color map with the requested gradient
+        colors = ["#00008B", "#00FFFF", "#008080", "#00FF00", "#FFFF00", "#FFA500", "#FF0000", "#8B0000"]
+        custom_cmap = LinearSegmentedColormap.from_list("custom_cmap", colors)
+
         # Plot
-        surf = ax.plot_surface(X, Y, z, cmap='viridis', edgecolor='none')
+        surf = ax.plot_surface(X, Y, z, cmap=custom_cmap, edgecolor='none')
 
         # Customize appearance
         ax.set_facecolor('black')  # Set background color of the axes
@@ -821,7 +826,6 @@ def ovs():
 
     if __name__ == "__main__":
         main()
-
 
 
 def main():
