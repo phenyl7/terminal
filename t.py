@@ -408,7 +408,7 @@ def options():
         plt.plot(stock_prices[payoff <= 0], payoff[payoff <= 0], color='red', label='Payoff Below Break-Even')
         plt.plot(stock_prices[payoff > 0], payoff[payoff > 0], color='lime', label='Payoff Above Break-Even')
 
-        plt.show()
+        plt.show(block=False)
 
     # Prompt user for ticker symbol
     ticker_symbol = input("Enter the stock ticker symbol (e.g., AAPL): ").strip().upper()
@@ -524,7 +524,7 @@ def sim():
 
     # Show plot
     plt.tight_layout()
-    plt.show()
+    plt.show(block=False)
     
 
 def remove_position():
@@ -536,18 +536,102 @@ def remove_position():
     else:
         print("Ticker not found in portfolio.")
 
+def cc():
+    import yfinance as yf
+
+    # ANSI color codes
+    LIME_GREEN = '\033[92m'
+    NEON_RED = '\033[91m'
+    BLUE = '\033[94m'  # Blue color for commodity names
+    RESET = '\033[0m'
+
+    # Tickers for Commodities and Cryptocurrencies
+    commodity_tickers = {
+        "Gold": "GC=F",
+        "Silver": "SI=F",
+        "Copper": "HG=F",
+        "WTI Crude Oil": "CL=F",
+        "Natural Gas": "NG=F",
+        "Corn": "ZC=F",
+        "Wheat": "ZW=F",
+        "Lumber": "LBR=F"
+    }
+
+    # Tickers for Cryptocurrencies and Indices
+    crypto_tickers = {
+        "Bitcoin": "BTC-USD",
+        "Ethereum": "ETH-USD"
+    }
+
+    index_tickers = {
+        "S&P 500": "^GSPC",
+        "NASDAQ 100": "^NDX",
+    }
+
+    def colorize_percent(percent):
+        if isinstance(percent, (int, float)):
+            return f"{LIME_GREEN}{percent:.2f}%{RESET}" if percent >= 0 else f"{NEON_RED}{percent:.2f}%{RESET}"
+        return percent
+
+    def print_performance(performance):
+        for name, data in performance.items():
+            print(f"{BLUE}Commodity: {name} ({data['ticker']}){RESET}")
+            print(f"Current Price: ${data['current_price']:.2f}" if data['current_price'] != 'N/A' else "Current Price: N/A")
+            print(f"1D %Δ: {colorize_percent(data['percent_change_today'])}" if data['percent_change_today'] != 'N/A' else "Percent Change Today: N/A")
+            print()
+
+    def get_data(tickers):
+        performance = {}
+        for name, ticker in tickers.items():
+            try:
+                stock = yf.Ticker(ticker)
+                data = stock.history(period="1d")
+                if not data.empty:
+                    current_price = data['Close'].iloc[0]  # Use iloc for positional indexing
+                    percent_change_today = ((data['Close'].iloc[0] - data['Open'].iloc[0]) / data['Open'].iloc[0]) * 100
+                else:
+                    current_price = 'N/A'
+                    percent_change_today = 'N/A'
+                
+                performance[name] = {
+                    'ticker': ticker,
+                    'current_price': current_price,
+                    'percent_change_today': percent_change_today
+                }
+            except Exception as e:
+                performance[name] = {
+                    'ticker': ticker,
+                    'current_price': 'N/A',
+                    'percent_change_today': 'N/A'
+                }
+                print(f"Error retrieving data for {name}: {e}")
+        
+        return performance
+
+    # Get and print commodity data
+    commodity_performance = get_data(commodity_tickers)
+    print_performance(commodity_performance)
+
+    # Get and print cryptocurrency data
+    crypto_performance = get_data(crypto_tickers)
+    print_performance(crypto_performance)
+
+    # Get and print index data
+    index_performance = get_data(index_tickers)
+    print_performance(index_performance)
+
 def main():
     while True:
         print("\nMenu:")
-        print("[1] Chart             [2] Finviz News")
-        print("[3] Commodities       [4] Crypto")
+        print("[1] Chart             [2] News")
+        print("[3] Markets           [4] Crypto")
         print("[5] SA                [6] Finviz")
         print("[7] 10-K              [8] 10-Q")
         print("[9] StockCharts       [10] Insiders")
         print("[11] Quote            [12] Financials")
         print("[13] Ratios           [14] Portfolio Performance Chart")
         print("[15] New Entry        [16] Edit Port")
-        print("[17] Good Morning     [18] News")
+        print("[17] Good Morning     [18] FinvizNews")
         print("[19] Options          [20] Simulations")
         print ("[q] Exit")
 
@@ -567,9 +651,9 @@ def main():
             else:
                 plot_stock_price(ticker, years, sma_period)
         elif choice == '2':
-            webbrowser.open("https://finviz.com/news.ashx")
+            news()
         elif choice == '3':
-            webbrowser.open("https://tradingeconomics.com/commodities")
+            cc()
         elif choice == '4':
             webbrowser.open("https://tradingeconomics.com/crypto")
         elif choice == '5':
@@ -624,7 +708,7 @@ def main():
         elif choice == '17':
             gm()
         elif choice == '18':
-            news()
+            webbrowser.open("https://finviz.com/news.ashx")
         elif choice == '19':
             options()
         elif choice == '20':
