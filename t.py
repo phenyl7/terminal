@@ -285,34 +285,43 @@ def news():
             webbrowser.open_new_tab(link)
 
     # Get ticker symbols from the user, separated by commas
-    ticker_symbols = input("Enter ticker symbols separated by commas (e.g., AAPL,MSFT,GOOGL): ")
-    ticker_symbols = [symbol.strip() for symbol in ticker_symbols.split(',')]
+    ticker_symbols_input = input("Enter ticker symbols separated by commas (e.g., AAPL,MSFT,GOOGL) or press Enter to skip: ")
+    
+    if ticker_symbols_input.strip():  # Check if input is not empty
+        ticker_symbols = [symbol.strip() for symbol in ticker_symbols_input.split(',')]
+        
+        all_headlines = []
+        start_number = 1
+        for symbol in ticker_symbols:
+            print(f"\nFetching news for {symbol}...")
+            headlines = fetch_news(symbol)
+            all_headlines.extend((symbol, title, link) for title, link, publisher in headlines)
+            # Display headlines with numbering and stock ticker
+            display_headlines(symbol, headlines, start_number)
+            start_number += len(headlines)
 
-    all_headlines = []
-    start_number = 1
-    for symbol in ticker_symbols:
-        print(f"\nFetching news for {symbol}...")
-        headlines = fetch_news(symbol)
-        all_headlines.extend((symbol, title, link) for title, link, publisher in headlines)
-        # Display headlines with numbering and stock ticker
-        display_headlines(symbol, headlines, start_number)
-        start_number += len(headlines)
+        # Prompt the user to search specific titles
+        while True:
+            try:
+                numbers_input = input("Enter the numbers of the titles you want to search, separated by commas (e.g., 1,3,5) or press Enter to skip: ")
+                
+                if numbers_input.strip():  # Check if input is not empty
+                    numbers = [int(num.strip()) for num in numbers_input.split(',')]
 
-    # Prompt the user to search specific titles
-    while True:
-        try:
-            numbers_input = input("Enter the numbers of the titles you want to search, separated by commas (e.g., 1,3,5): ")
-            numbers = [int(num.strip()) for num in numbers_input.split(',')]
-
-            # Validate and search links
-            if all(1 <= number <= len(all_headlines) for number in numbers):
-                links = [all_headlines[number - 1][2] for number in numbers]
-                search_links_on_google(links)
-                break
-            else:
-                print(f"Invalid numbers. Please enter numbers between 1 and {len(all_headlines)}.")
-        except ValueError:
-            print("Invalid input. Please enter valid numbers separated by commas.")
+                    # Validate and search links
+                    if all(1 <= number <= len(all_headlines) for number in numbers):
+                        links = [all_headlines[number - 1][2] for number in numbers]
+                        search_links_on_google(links)
+                        break
+                    else:
+                        print(f"Invalid numbers. Please enter numbers between 1 and {len(all_headlines)}.")
+                else:
+                    print("No titles selected for search. Exiting.")
+                    break
+            except ValueError:
+                print("Invalid input. Please enter valid numbers separated by commas.")
+    else:
+        print("No ticker symbols entered. Exiting news function.")
 
 def options():
     import yfinance as yf
@@ -863,12 +872,22 @@ def main():
         elif choice == 'gm':
             gm()
         elif choice == 'sa':
-            ticker = input("Enter ticker: ").strip().upper()
-            url = f"https://seekingalpha.com/symbol/{ticker}"
+            ticker = input("Enter ticker (or press Enter to open homepage): ").strip().upper()
+            if ticker:
+                url = f"https://seekingalpha.com/symbol/{ticker}"
+            else:
+                url = "https://seekingalpha.com/"
+            # Open the URL in the default web browser
+            import webbrowser
             webbrowser.open(url)
         elif choice == 'fv':
-            ticker = input("Enter ticker: ").strip().upper()
-            url = f"https://finviz.com/quote.ashx?t={ticker}&p=d"
+            ticker = input("Enter ticker (or press Enter to open homepage): ").strip().upper()
+            if ticker:
+                url = f"https://finviz.com/quote.ashx?t={ticker}&p=d"
+            else:
+                url = "https://finviz.com/"
+            # Open the URL in the default web browser
+            import webbrowser
             webbrowser.open(url)
         elif choice == '10k':
             ticker = input("Enter ticker: ").strip().upper()
