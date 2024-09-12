@@ -69,58 +69,85 @@ def plot_stock_price(ticker, years, sma_period):
 
 
 def plot_portfolio_performance_chart(years):
+    import yfinance as yf
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from datetime import datetime, timedelta
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=years * 365)
+    # Calculate start_date with float year input (handles partial years)
+    start_date = end_date - timedelta(days=int(years * 365))  # Use int() to handle fractional days
     
-    num_stocks = len([ticker for ticker in portfolio if ticker != "1"])
-    stocks_per_page = 4
-    num_pages = (num_stocks + stocks_per_page - 1) // stocks_per_page
+    tickers_to_plot = [ticker for ticker in portfolio if ticker != "1"]
+    total_portfolio_value = 0
+    asset_values = []
+    stock_labels = []
+    percent_changes = []
+    
+    # Iterate over each stock in the portfolio
+    for ticker in tickers_to_plot:
+        try:
+            stock_data = yf.download(ticker, start=start_date, end=end_date)
+            
+            if stock_data.empty:
+                print(f"No data found for ticker: {ticker}")
+                continue
 
-    print(f"Total pages: {num_pages}")
+            # Calculate the stock's total value in the portfolio
+            last_close_price = stock_data['Close'].iloc[-1]
+            asset_value = portfolio[ticker]['shares'] * last_close_price
+            asset_values.append(asset_value)
+            stock_labels.append(ticker)
+            total_portfolio_value += asset_value
+            
+            # Calculate percent change over the entered years
+            percent_change = ((last_close_price - stock_data['Close'].iloc[0]) / stock_data['Close'].iloc[0]) * 100
+            percent_changes.append(percent_change)
+            
+        except Exception as e:
+            print(f"Error processing {ticker}: {e}")
+    
+    # Normalize asset values for the pie chart
+    asset_values = np.array(asset_values)
+    asset_percentages = (asset_values / total_portfolio_value * 100).round()  # Round to nearest whole number
+    
+    # Create the pie chart for asset allocation
+    fig, axs = plt.subplots(1, 2, figsize=(16, 8), facecolor='black')
+    
+    colors = plt.cm.viridis(np.linspace(0, 1, len(tickers_to_plot)))  # Generate a colormap
+    wedges, texts = axs[0].pie(asset_percentages, labels=None, startangle=90, colors=colors)
+    
+    axs[0].set_title('Portfolio Asset Allocation', color='white')
+    
+    # Format legend with tickers and their percentages
+    legend_labels = [f"{ticker}: {percent:.0f}%" for ticker, percent in zip(stock_labels, asset_percentages)]
+    axs[0].legend(wedges, legend_labels, title="Stocks", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), fontsize=10, title_fontsize=12)
+    
+    # Plot the bar chart for percent change over the period
+    bars = axs[1].bar(stock_labels, percent_changes, color=colors, edgecolor='white')
+    axs[1].set_title(f'Portfolio Performance Over {years:.1f} Year(s)', color='white')
+    axs[1].set_xlabel('Stock Ticker', color='orange')
+    axs[1].set_ylabel( color='orange')
 
-    # Iterate through pages
-    for page in range(num_pages):
-        plt.figure(figsize=(12, 12), facecolor='black')
-        
-        start_idx = page * stocks_per_page
-        end_idx = min(start_idx + stocks_per_page, num_stocks)
-        tickers_to_plot = [ticker for ticker in portfolio if ticker != "1"][start_idx:end_idx]
+    # Add data labels above bars
+    for bar, percent in zip(bars, percent_changes):
+        height = bar.get_height()
+        axs[1].text(bar.get_x() + bar.get_width() / 2, height, f'{percent:.2f}%', ha='center', va='bottom', color='white')
+    
+    # Set axes and grid lines to orange
+    axs[1].tick_params(axis='x', colors='orange')
+    axs[1].tick_params(axis='y', colors='orange')
+    axs[1].grid(color='orange', linestyle='--', linewidth=0.5)
 
-        total_value = 0
-        subplot_index = 1
+    # Set background and tick colors for both plots
+    for ax in axs:
+        ax.set_facecolor('black')
+    
+    plt.tight_layout()
+    plt.show(block=False)
 
-        for ticker in tickers_to_plot:
-            try:
-                stock_data = yf.download(ticker, start=start_date, end=end_date)
-                
-                if stock_data.empty:
-                    print(f"No data found for ticker: {ticker}")
-                    continue
 
-                ax = plt.subplot(stocks_per_page, 1, subplot_index)
-                ax.plot(stock_data.index, stock_data['Adj Close'], label=f'{ticker} Price', color='orange')
-                ax.set_title(f'{ticker} Price Over Time', color='white')
-                ax.set_ylabel('Adjusted Close Price', color='white')
-                ax.legend()
-                ax.set_facecolor('black')
-                ax.tick_params(axis='both', colors='grey')
-                ax.grid(color='grey', linestyle='--', linewidth=0.5)
 
-                subplot_index += 1
-                
-                last_close_price = stock_data['Close'].iloc[-1]
-                total_value += portfolio[ticker]['shares'] * last_close_price
-                
-            except Exception as e:
-                print(f"Error processing {ticker}: {e}")
 
-        plt.subplots_adjust(hspace=0.5)
-        plt.figtext(0.1, 0.02, f'Total Portfolio Value (Page {page + 1}/{num_pages}): ${total_value:,.2f}', color='orange', fontsize=12)
-        
-        plt.show(block=False)
-        
-        if page < num_pages - 1:
-            input("Press Enter to continue to the next page...")
 
 
 def gm():
