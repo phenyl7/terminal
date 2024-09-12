@@ -831,21 +831,19 @@ def ovs():
 def main():
     while True:
         print("\nMenu:")
-        print("[1] Chart             [2] News")
-        print("[3] Markets           [4] Good Morning")
-        print("[5] SA                [6] Finviz")
-        print("[7] 10-K              [8] 10-Q")
-        print("[9] StockCharts       [10] Insiders")
-        print("[11] Quote            [12] Financials")
-        print("[13] Ratios           [14] Portfolio Vis")
-        print("[15] New Entry        [16] Edit Port")
-        print("[17] DES              [18] Finviz News")
-        print("[19] Options          [20] Simulations")
-        print("[21] OVS              [q] Exit")
+        print("[ch]   [news] [cc]")
+        print("[gm]   [des]  [fvn]")
+        print("[sa]   [fv]   [hol] ")
+        print("[ins]  [sum]  [fs] ")
+        print("[rs]   [port] [add]")
+        print("[edit] [10k]  [10q] ")
+        print("[op]   [sim]  [ovs]")
+        print("[vic]  [q]")
+        
 
         choice = input("Choose an option: ").strip()
         
-        if choice == '1':
+        if choice == 'ch':
             ticker = input("Enter ticker: ").strip().upper()
             try:
                 years = float(input("Enter years: ").strip())
@@ -858,49 +856,49 @@ def main():
                 print(f"Invalid input: {e}")
             else:
                 plot_stock_price(ticker, years, sma_period)
-        elif choice == '2':
+        elif choice == 'news':
             news()
-        elif choice == '3':
+        elif choice == 'cc':
             cc()
-        elif choice == '4':
+        elif choice == 'gm':
             gm()
-        elif choice == '5':
+        elif choice == 'sa':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"https://seekingalpha.com/symbol/{ticker}"
             webbrowser.open(url)
-        elif choice == '6':
+        elif choice == 'fv':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"https://finviz.com/quote.ashx?t={ticker}&p=d"
             webbrowser.open(url)
-        elif choice == '7':
+        elif choice == '10k':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"https://www.sec.gov/edgar/search/?r=el#/dateRange=all&entityName={ticker}&filter_forms=10-K"
             webbrowser.open(url)
-        elif choice == '8':
+        elif choice == '10q':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"https://www.sec.gov/edgar/search/?r=el#/dateRange=all&entityName={ticker}&filter_forms=10-Q"
             webbrowser.open(url)
-        elif choice == '9':
+        elif choice == 'hol':
             ticker = input("Enter ticker: ").strip().upper()
-            url = f"https://stockcharts.com/sc3/ui/?s={ticker}"
+            url = f"https://whalewisdom.com/stock/{ticker}"
             webbrowser.open(url)
-        elif choice == '10':
+        elif choice == 'ins':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"http://openinsider.com/search?q={ticker}"
             webbrowser.open(url)
-        elif choice == '11':
+        elif choice == 'fs':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"https://www.roic.ai/quote/{ticker}/financials"
             webbrowser.open(url)
-        elif choice == '12':
+        elif choice == 'sum':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"https://www.roic.ai/quote/{ticker}"
             webbrowser.open(url)
-        elif choice == '13':
+        elif choice == 'rs':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"https://www.roic.ai/quote/{ticker}/ratios"
             webbrowser.open(url)
-        elif choice == '14':
+        elif choice == 'port':
             try:
                 years = int(input("Enter number of years for portfolio performance chart: ").strip())
                 if years <= 0:
@@ -909,20 +907,22 @@ def main():
                 print(f"Invalid input: {e}")
             else:
                 plot_portfolio_performance_chart(years)
-        elif choice == '15':
+        elif choice == 'add':
             add_position()
-        elif choice == '16':
+        elif choice == 'edit':
             remove_position()
-        elif choice == '17':
+        elif choice == 'des':
             des()
-        elif choice == '18':
+        elif choice == 'fvn':
             webbrowser.open("https://finviz.com/news.ashx")
-        elif choice == '19':
+        elif choice == 'op':
             options()
-        elif choice == '20':
+        elif choice == 'sim':
             sim()
-        elif choice == '21':
+        elif choice == 'ovs':
             ovs()
+        elif choice == 'vic':
+            webbrowser.open("https://valueinvestorsclub.com/ideas")
         elif choice == 'q':
             break
         else:
