@@ -4,7 +4,7 @@ import json
 import os
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
-import webbrowser
+import webbrowser 
 
 # File to save portfolio data
 PORTFOLIO_FILE = 'portfolio.json'
@@ -36,36 +36,116 @@ def get_stock_data(ticker):
 
     return data
 
-def plot_stock_price(ticker, years, sma_period):
+
+
+def plot_stock_price():
+    # Prompt for ticker and years
+    ticker = input("Enter the stock ticker: ")
+    years = int(input("Enter the number of years of data to retrieve: "))
+
+    # Define the plot types and ask the user to select one
+    print("Select plot type:")
+    print("1. SMA")
+    print("2. Bollinger Bands")
+    print("3. RSI")
+    print("4. MACD")
+    print("5. Ichimoku Cloud")
+
+    plot_choice = input("Enter the number of your choice: ")
+    plot_type = None
+    sma_period = None
+
+    if plot_choice == '1':
+        plot_type = 'sma'
+        sma_period = int(input("Enter SMA period (0 to skip): "))
+    elif plot_choice == '2':
+        plot_type = 'bollinger'
+        sma_period = int(input("Enter Bollinger Bands period (0 to skip): "))
+    elif plot_choice == '3':
+        plot_type = 'rsi'
+    elif plot_choice == '4':
+        plot_type = 'macd'
+    elif plot_choice == '5':
+        plot_type = 'ichimoku'
+    else:
+        print("Invalid choice. Exiting.")
+        return
+
+    # Download stock data
     end_date = datetime.now()
     start_date = end_date - timedelta(days=years*365)  # Approximate number of days for given years
-
     stock_data = yf.download(ticker, start=start_date, end=end_date)
 
     if stock_data.empty:
         print(f"No data found for ticker: {ticker}")
         return
 
-    if sma_period > 0:
-        stock_data['SMA'] = stock_data['Adj Close'].rolling(window=sma_period).mean()
-
     plt.figure(figsize=(12, 6))
     plt.plot(stock_data.index, stock_data['Adj Close'], label=f'{ticker} Price', color='orange')
-    
-    if sma_period > 0:
+
+    # Plot based on the selected plot type
+    if plot_type == 'sma' and sma_period:
+        stock_data['SMA'] = stock_data['Adj Close'].rolling(window=sma_period).mean()
         plt.plot(stock_data.index, stock_data['SMA'], label=f'SMA {sma_period}', color='blue')
+
+    elif plot_type == 'bollinger' and sma_period:
+        sma = stock_data['Adj Close'].rolling(window=sma_period).mean()
+        rstd = stock_data['Adj Close'].rolling(window=sma_period).std()
+        stock_data['Bollinger High'] = sma + 2 * rstd
+        stock_data['Bollinger Low'] = sma - 2 * rstd
+        plt.plot(stock_data.index, stock_data['Bollinger High'], label='Bollinger High', color='green')
+        plt.plot(stock_data.index, stock_data['Bollinger Low'], label='Bollinger Low', color='red')
+
+    elif plot_type == 'rsi':
+        delta = stock_data['Adj Close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs))
+        plt.plot(stock_data.index, rsi, label='RSI', color='purple')
+        plt.axhline(70, linestyle='--', color='red')
+        plt.axhline(30, linestyle='--', color='green')
+
+    elif plot_type == 'macd':
+        short_ema = stock_data['Adj Close'].ewm(span=12, adjust=False).mean()
+        long_ema = stock_data['Adj Close'].ewm(span=26, adjust=False).mean()
+        macd = short_ema - long_ema
+        signal = macd.ewm(span=9, adjust=False).mean()
+        plt.plot(stock_data.index, macd, label='MACD', color='blue')
+        plt.plot(stock_data.index, signal, label='Signal Line', color='red')
+
+    elif plot_type == 'ichimoku':
+        high_9 = stock_data['High'].rolling(window=9).max()
+        low_9 = stock_data['Low'].rolling(window=9).min()
+        stock_data['Tenkan-sen'] = (high_9 + low_9) / 2
+        
+        high_26 = stock_data['High'].rolling(window=26).max()
+        low_26 = stock_data['Low'].rolling(window=26).min()
+        stock_data['Kijun-sen'] = (high_26 + low_26) / 2
+        
+        stock_data['Senkou Span A'] = ((stock_data['Tenkan-sen'] + stock_data['Kijun-sen']) / 2).shift(26)
+        stock_data['Senkou Span B'] = ((stock_data['High'].rolling(window=52).max() + stock_data['Low'].rolling(window=52).min()) / 2).shift(26)
+        stock_data['Chikou Span'] = stock_data['Adj Close'].shift(-26)
+        
+        plt.plot(stock_data.index, stock_data['Tenkan-sen'], label='Tenkan-sen', color='cyan')
+        plt.plot(stock_data.index, stock_data['Kijun-sen'], label='Kijun-sen', color='magenta')
+        plt.plot(stock_data.index, stock_data['Senkou Span A'], label='Senkou Span A', color='green')
+        plt.plot(stock_data.index, stock_data['Senkou Span B'], label='Senkou Span B', color='red')
+        plt.plot(stock_data.index, stock_data['Chikou Span'], label='Chikou Span', color='blue')
 
     plt.title(f'{ticker} Stock Price Over the Last {years} Years', color='white')
     plt.xlabel('Date', color='white')
-    plt.ylabel('Adjusted Close Price', color='white')
+    plt.ylabel('Value', color='white')
     plt.legend()
-    
+
     plt.gca().set_facecolor('black')  # Background color of the plot
     plt.gca().tick_params(axis='both', colors='grey')  # Color of the ticks
     plt.grid(color='grey', linestyle='--', linewidth=0.5)  # Grid color and style
-    
+
     plt.gcf().patch.set_facecolor('black')  # Background color of the figure
     plt.show(block=False)
+
+
 
 
 def plot_portfolio_performance_chart(years):
@@ -75,7 +155,7 @@ def plot_portfolio_performance_chart(years):
     from datetime import datetime, timedelta
     end_date = datetime.now()
     # Calculate start_date with float year input (handles partial years)
-    start_date = end_date - timedelta(days=int(years * 365))  # Use int() to handle fractional days
+    start_date = end_date - timedelta(days=float(years * 365))  # Use int() to handle fractional days
     
     tickers_to_plot = [ticker for ticker in portfolio if ticker != "1"]
     total_portfolio_value = 0
@@ -126,7 +206,7 @@ def plot_portfolio_performance_chart(years):
     bars = axs[1].bar(stock_labels, percent_changes, color=colors, edgecolor='white')
     axs[1].set_title(f'Portfolio Performance Over {years:.1f} Year(s)', color='white')
     axs[1].set_xlabel('Stock Ticker', color='orange')
-    axs[1].set_ylabel( color='orange')
+    axs[1].set_ylabel('%', color='orange')
 
     # Add data labels above bars
     for bar, percent in zip(bars, percent_changes):
@@ -874,24 +954,13 @@ def main():
         print("[rs]   [port] [add]")
         print("[edit] [10k]  [10q] ")
         print("[op]   [sim]  [ovs]")
-        print("[vic]  [q]")
+        print("[vic]  [gain] [q]")
         
 
         choice = input("Choose an option: ").strip()
         
         if choice == 'ch':
-            ticker = input("Enter ticker: ").strip().upper()
-            try:
-                years = float(input("Enter years: ").strip())
-                if years <= 0:
-                    raise ValueError("The timespan must be a positive number.")
-                sma_period = int(input("Enter SMA period (0 to skip): ").strip())
-                if sma_period < 0:
-                    raise ValueError("The SMA period must be a non-negative integer.")
-            except ValueError as e:
-                print(f"Invalid input: {e}")
-            else:
-                plot_stock_price(ticker, years, sma_period)
+            plot_stock_price()
         elif choice == 'news':
             news()
         elif choice == 'cc':
@@ -919,30 +988,37 @@ def main():
         elif choice == '10k':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"https://www.sec.gov/edgar/search/?r=el#/dateRange=all&entityName={ticker}&filter_forms=10-K"
+            import webbrowser
             webbrowser.open(url)
         elif choice == '10q':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"https://www.sec.gov/edgar/search/?r=el#/dateRange=all&entityName={ticker}&filter_forms=10-Q"
+            import webbrowser
             webbrowser.open(url)
         elif choice == 'hol':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"https://whalewisdom.com/stock/{ticker}"
+            import webbrowser
             webbrowser.open(url)
         elif choice == 'ins':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"http://openinsider.com/search?q={ticker}"
+            import webbrowser
             webbrowser.open(url)
         elif choice == 'fs':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"https://www.roic.ai/quote/{ticker}/financials"
+            import webbrowser
             webbrowser.open(url)
         elif choice == 'sum':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"https://www.roic.ai/quote/{ticker}"
+            import webbrowser
             webbrowser.open(url)
         elif choice == 'rs':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"https://www.roic.ai/quote/{ticker}/ratios"
+            import webbrowser
             webbrowser.open(url)
         elif choice == 'port':
             try:
@@ -960,6 +1036,7 @@ def main():
         elif choice == 'des':
             des()
         elif choice == 'fvn':
+            import webbrowser
             webbrowser.open("https://finviz.com/news.ashx")
         elif choice == 'op':
             options()
@@ -968,7 +1045,11 @@ def main():
         elif choice == 'ovs':
             ovs()
         elif choice == 'vic':
+            import webbrowser
             webbrowser.open("https://valueinvestorsclub.com/ideas")
+        elif choice == 'gain':
+            import webbrowser
+            webbrowser.open("https://stockanalysis.com/markets/gainers/month/")
         elif choice == 'q':
             break
         else:
