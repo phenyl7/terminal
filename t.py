@@ -943,79 +943,129 @@ def ovs():
     if __name__ == "__main__":
         main()
 
-def compare():
-    tickers = input("Enter stock tickers (separated by commas): ").split(',')
+def val():
+    import yfinance as yf
+    ticker = input("Enter a stock ticker: ").strip()
+    
+    stock = yf.Ticker(ticker)
+    stock_info = stock.history(period="1d")
+    stock_summary = stock.info
+    
+    # Fetching quarterly financials and cash flow
+    quarterly_financials = stock.quarterly_financials
+    quarterly_cashflow = stock.quarterly_cashflow
+    annual_cashflow = stock.cashflow
+    
+    # Calculate TTM Gross Profit
+    if not quarterly_financials.empty and 'Gross Profit' in quarterly_financials.index:
+        quarterly_financials = quarterly_financials.T.sort_index(ascending=False)
+        gross_profit_quarters = quarterly_financials.loc[:, 'Gross Profit'].dropna().head(4)
+        ttm_gross_profit = gross_profit_quarters.sum() if len(gross_profit_quarters) == 4 else "Not enough data"
+        ttm_gross_profit = f"{round(ttm_gross_profit):,}" if isinstance(ttm_gross_profit, (int, float)) else ttm_gross_profit
+    else:
+        ttm_gross_profit = "No data available"
+    
+    # Calculate TTM Free Cash Flow
+    if not quarterly_cashflow.empty and 'Free Cash Flow' in quarterly_cashflow.index:
+        quarterly_cashflow = quarterly_cashflow.T.sort_index(ascending=False)
+        free_cash_flow_quarters = quarterly_cashflow.loc[:, 'Free Cash Flow'].dropna().head(4)
+        ttm_free_cash_flow = free_cash_flow_quarters.sum() if len(free_cash_flow_quarters) == 4 else "Not enough data"
+        ttm_free_cash_flow_numeric = ttm_free_cash_flow if isinstance(ttm_free_cash_flow, (int, float)) else None
+        ttm_free_cash_flow = f"{round(ttm_free_cash_flow):,}" if isinstance(ttm_free_cash_flow, (int, float)) else ttm_free_cash_flow
+    else:
+        ttm_free_cash_flow = "No data available"
+        ttm_free_cash_flow_numeric = None
+    
+    # Fetch other data
+    book_value = stock_summary.get('bookValue', None)
+    latest_price = round(stock_info['Close'].iloc[-1]) if not stock_info.empty else "No data available"
+    market_cap = stock_summary.get('marketCap', None)
+    shares_outstanding = stock_summary.get('sharesOutstanding', None)
+    
+    if market_cap is not None:
+        market_cap_numeric = market_cap
+        market_cap = f"{round(market_cap):,}"
+    else:
+        market_cap_numeric = None
+        market_cap = "No data available"
+    
+    if shares_outstanding is not None:
+        shares_outstanding = float(shares_outstanding)
+        shares_outstanding_display = f"{round(shares_outstanding):,}"
+    else:
+        shares_outstanding = None
+        shares_outstanding_display = "No data available"
+    
+    # Calculate FCF per Share
+    if ttm_free_cash_flow_numeric is not None and shares_outstanding is not None:
+        fcf_per_share = round(ttm_free_cash_flow_numeric / shares_outstanding, 2)
+        fcf_per_share = f"${fcf_per_share:,.2f}"
+    else:
+        fcf_per_share = "No data available"
+    
+    if book_value is not None:
+        book_value = f"{round(book_value):,}"
+    else:
+        book_value = "No data available"
+    
+    # Calculate Price/FCF (Market Cap / TTM Free Cash Flow)
+    if ttm_free_cash_flow_numeric is not None and market_cap_numeric is not None:
+        price_fcf = round(market_cap_numeric / ttm_free_cash_flow_numeric, 2)
+        price_fcf_display = f"{price_fcf:,.2f}"
+    else:
+        price_fcf_display = "No data available"
+    
+    # Calculate percent change in annual Free Cash Flow between the last two years
+    if not annual_cashflow.empty and 'Free Cash Flow' in annual_cashflow.index:
+        annual_cashflow = annual_cashflow.T.sort_index(ascending=False)
+        free_cash_flow_years = annual_cashflow.loc[:, 'Free Cash Flow'].dropna().head(2)
+        if len(free_cash_flow_years) == 2:
+            fcf_percent_change = ((free_cash_flow_years.iloc[0] - free_cash_flow_years.iloc[1]) / free_cash_flow_years.iloc[1]) * 100
+            fcf_percent_change_display = f"{fcf_percent_change:.2f}%"
+        else:
+            fcf_percent_change_display = "Not enough data"
+    else:
+        fcf_percent_change_display = "No data available"
+    
+    # Print all information
+    print(f"Ticker: {ticker.upper()}")
+    print(f"Price: ${latest_price}")
+    print(f"MC: ${market_cap}")
+    print(f"TTM Profit: ${ttm_gross_profit}")
+    print(f"TTM Free Cash Flow: ${ttm_free_cash_flow}")
+    print(f"Shares Issued: {shares_outstanding_display}")
+    print(f"BV/SH: ${book_value}")
+    print(f"FCF/SH: {fcf_per_share}")
+    print(f"Price/FCF: {price_fcf_display}")
+    print(f"Annual FCF Percent Change (Last 2 Years): {fcf_percent_change_display}")
+    
+    # Prompt for multiple growth rates
+    growth_rates_input = input("Enter growth rates to test (%) : ").strip()
+    growth_rates = [float(rate.strip()) for rate in growth_rates_input.split(',')]
+    
+    # Calculate and print future FCF and final value for each growth rate
+    future_fcf_values = {}
+    final_value_results = {}
+    if ttm_free_cash_flow_numeric is not None and isinstance(fcf_percent_change, (int, float)):
+        for growth_rate in growth_rates:
+            r = (growth_rate / 100)  # Convert percent to a decimal
+            n = 10  # 10 years
+            future_fcf = ttm_free_cash_flow_numeric * (1 + r) ** n
+            future_fcf_values[growth_rate] = future_fcf
+            if shares_outstanding is not None and price_fcf_display != "No data available":
+                final_value = (future_fcf * price_fcf) / shares_outstanding
+                final_value_results[growth_rate] = final_value
+    
+    # Print predicted FCF and final values for each growth rate
+    for growth_rate in growth_rates:
+        future_fcf_display = f"${round(future_fcf_values[growth_rate]):,}" if growth_rate in future_fcf_values else "No data available"
+        final_value_display = f"${round(final_value_results[growth_rate]):,}" if growth_rate in final_value_results else "No data available"
+        print(f"\nGrowth Rate: {growth_rate:.2f}%")
+        print(f"Predicted FCF in 10 Years: {future_fcf_display}")
+        print(f"Final Value ((Future FCF * Price/FCF) / Shares Issued): {final_value_display}\n")
 
-    for ticker in [t.strip() for t in tickers]:
-        stock = yf.Ticker(ticker)
-        stock_info = stock.history(period="1d")
-        stock_summary = stock.info
-        
-        # Fetching quarterly financials and cash flow
-        quarterly_financials = stock.quarterly_financials
-        quarterly_cashflow = stock.quarterly_cashflow
-        
-        # Calculate TTM Gross Profit
-        if not quarterly_financials.empty and 'Gross Profit' in quarterly_financials.index:
-            quarterly_financials = quarterly_financials.T.sort_index(ascending=False)
-            gross_profit_quarters = quarterly_financials.loc[:, 'Gross Profit'].dropna().head(4)
-            ttm_gross_profit = gross_profit_quarters.sum() if len(gross_profit_quarters) == 4 else "Not enough data"
-            ttm_gross_profit = f"{round(ttm_gross_profit):,}" if isinstance(ttm_gross_profit, (int, float)) else ttm_gross_profit
-        else:
-            ttm_gross_profit = "No data available"
-        
-        # Calculate TTM Free Cash Flow
-        if not quarterly_cashflow.empty and 'Free Cash Flow' in quarterly_cashflow.index:
-            quarterly_cashflow = quarterly_cashflow.T.sort_index(ascending=False)
-            free_cash_flow_quarters = quarterly_cashflow.loc[:, 'Free Cash Flow'].dropna().head(4)
-            ttm_free_cash_flow = free_cash_flow_quarters.sum() if len(free_cash_flow_quarters) == 4 else "Not enough data"
-            ttm_free_cash_flow_numeric = ttm_free_cash_flow if isinstance(ttm_free_cash_flow, (int, float)) else None
-            ttm_free_cash_flow = f"{round(ttm_free_cash_flow):,}" if isinstance(ttm_free_cash_flow, (int, float)) else ttm_free_cash_flow
-        else:
-            ttm_free_cash_flow = "No data available"
-            ttm_free_cash_flow_numeric = None
-        
-        # Fetch other data
-        book_value = stock_summary.get('bookValue', None)
-        latest_price = round(stock_info['Close'].iloc[-1]) if not stock_info.empty else "No data available"
-        market_cap = stock_summary.get('marketCap', None)
-        shares_outstanding = stock_summary.get('sharesOutstanding', None)
-        
-        if market_cap is not None:
-            market_cap = f"{round(market_cap):,}"
-        else:
-            market_cap = "No data available"
-        
-        if shares_outstanding is not None:
-            shares_outstanding = float(shares_outstanding)
-            shares_outstanding_display = f"{round(shares_outstanding):,}"
-        else:
-            shares_outstanding = None
-            shares_outstanding_display = "No data available"
-        
-        # Calculate FCF per Share
-        if ttm_free_cash_flow_numeric is not None and shares_outstanding is not None:
-            fcf_per_share = round(ttm_free_cash_flow_numeric / shares_outstanding, 2)
-            fcf_per_share = f"${fcf_per_share:,.2f}"
-        else:
-            fcf_per_share = "No data available"
-        
-        if book_value is not None:
-            book_value = f"{round(book_value):,}"
-        else:
-            book_value = "No data available"
-        
-        print(f"Ticker: {ticker.upper()}")
-        print(f"Price: ${latest_price}")
-        print(f"MC: ${market_cap}")
-        print(f"TTM Profit: ${ttm_gross_profit}")
-        print(f"TTM Free Cash Flow: ${ttm_free_cash_flow}")
-        print(f"Shares Issued: {shares_outstanding_display}")
-        print(f"BV/SH: ${book_value}")
-        print(f"FCF/SH: {fcf_per_share}\n")
-
-    #if __name__ == "__main__":
-        #compare()
+   # if __name__ == "__main__":
+       # val()
 
 
 def main():
@@ -1028,7 +1078,7 @@ def main():
         print("[rs]   [port] [add]")
         print("[edit] [10k]  [10q] ")
         print("[op]   [sim]  [ovs]")
-        print("[vic]  [gain] [compare]")
+        print("[vic]  [gain] [val]")
         print("[q]")
         
 
@@ -1125,8 +1175,8 @@ def main():
         elif choice == 'gain':
             import webbrowser
             webbrowser.open("https://stockanalysis.com/markets/gainers/month/")
-        elif choice == 'compare':
-            compare()
+        elif choice == 'val':
+            val()
         elif choice == 'q':
             break
         else:
