@@ -943,6 +943,80 @@ def ovs():
     if __name__ == "__main__":
         main()
 
+def compare():
+    tickers = input("Enter stock tickers (separated by commas): ").split(',')
+
+    for ticker in [t.strip() for t in tickers]:
+        stock = yf.Ticker(ticker)
+        stock_info = stock.history(period="1d")
+        stock_summary = stock.info
+        
+        # Fetching quarterly financials and cash flow
+        quarterly_financials = stock.quarterly_financials
+        quarterly_cashflow = stock.quarterly_cashflow
+        
+        # Calculate TTM Gross Profit
+        if not quarterly_financials.empty and 'Gross Profit' in quarterly_financials.index:
+            quarterly_financials = quarterly_financials.T.sort_index(ascending=False)
+            gross_profit_quarters = quarterly_financials.loc[:, 'Gross Profit'].dropna().head(4)
+            ttm_gross_profit = gross_profit_quarters.sum() if len(gross_profit_quarters) == 4 else "Not enough data"
+            ttm_gross_profit = f"{round(ttm_gross_profit):,}" if isinstance(ttm_gross_profit, (int, float)) else ttm_gross_profit
+        else:
+            ttm_gross_profit = "No data available"
+        
+        # Calculate TTM Free Cash Flow
+        if not quarterly_cashflow.empty and 'Free Cash Flow' in quarterly_cashflow.index:
+            quarterly_cashflow = quarterly_cashflow.T.sort_index(ascending=False)
+            free_cash_flow_quarters = quarterly_cashflow.loc[:, 'Free Cash Flow'].dropna().head(4)
+            ttm_free_cash_flow = free_cash_flow_quarters.sum() if len(free_cash_flow_quarters) == 4 else "Not enough data"
+            ttm_free_cash_flow_numeric = ttm_free_cash_flow if isinstance(ttm_free_cash_flow, (int, float)) else None
+            ttm_free_cash_flow = f"{round(ttm_free_cash_flow):,}" if isinstance(ttm_free_cash_flow, (int, float)) else ttm_free_cash_flow
+        else:
+            ttm_free_cash_flow = "No data available"
+            ttm_free_cash_flow_numeric = None
+        
+        # Fetch other data
+        book_value = stock_summary.get('bookValue', None)
+        latest_price = round(stock_info['Close'].iloc[-1]) if not stock_info.empty else "No data available"
+        market_cap = stock_summary.get('marketCap', None)
+        shares_outstanding = stock_summary.get('sharesOutstanding', None)
+        
+        if market_cap is not None:
+            market_cap = f"{round(market_cap):,}"
+        else:
+            market_cap = "No data available"
+        
+        if shares_outstanding is not None:
+            shares_outstanding = float(shares_outstanding)
+            shares_outstanding_display = f"{round(shares_outstanding):,}"
+        else:
+            shares_outstanding = None
+            shares_outstanding_display = "No data available"
+        
+        # Calculate FCF per Share
+        if ttm_free_cash_flow_numeric is not None and shares_outstanding is not None:
+            fcf_per_share = round(ttm_free_cash_flow_numeric / shares_outstanding, 2)
+            fcf_per_share = f"${fcf_per_share:,.2f}"
+        else:
+            fcf_per_share = "No data available"
+        
+        if book_value is not None:
+            book_value = f"{round(book_value):,}"
+        else:
+            book_value = "No data available"
+        
+        print(f"Ticker: {ticker.upper()}")
+        print(f"Price: ${latest_price}")
+        print(f"MC: ${market_cap}")
+        print(f"TTM Profit: ${ttm_gross_profit}")
+        print(f"TTM Free Cash Flow: ${ttm_free_cash_flow}")
+        print(f"Shares Issued: {shares_outstanding_display}")
+        print(f"BV/SH: ${book_value}")
+        print(f"FCF/SH: {fcf_per_share}\n")
+
+    #if __name__ == "__main__":
+        #compare()
+
 
 def main():
     while True:
@@ -954,7 +1028,8 @@ def main():
         print("[rs]   [port] [add]")
         print("[edit] [10k]  [10q] ")
         print("[op]   [sim]  [ovs]")
-        print("[vic]  [gain] [q]")
+        print("[vic]  [gain] [compare]")
+        print("[q]")
         
 
         choice = input("Choose an option: ").strip()
@@ -1050,6 +1125,8 @@ def main():
         elif choice == 'gain':
             import webbrowser
             webbrowser.open("https://stockanalysis.com/markets/gainers/month/")
+        elif choice == 'compare':
+            compare()
         elif choice == 'q':
             break
         else:
