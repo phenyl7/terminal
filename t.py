@@ -39,9 +39,20 @@ def get_stock_data(ticker):
 
 
 def plot_stock_price():
+    import matplotlib.pyplot as plt
+    import yfinance as yf
+    from datetime import datetime, timedelta
+    from fractions import Fraction
     # Prompt for ticker and years
-    ticker = input("Enter the stock ticker: ")
-    years = int(input("Enter the number of years of data to retrieve: "))
+    ticker = input("Enter ticker: ")
+    years_input = input("Enter years: ")
+
+    # Convert fractional input to float
+    try:
+        years = float(Fraction(years_input))
+    except ValueError:
+        print("Invalid input for years. Exiting.")
+        return
 
     # Define the plot types and ask the user to select one
     print("Select plot type:")
@@ -73,15 +84,26 @@ def plot_stock_price():
 
     # Download stock data
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=years*365)  # Approximate number of days for given years
+    start_date = end_date - timedelta(days=int(years * 365.25))  # Approximate number of days for given years
     stock_data = yf.download(ticker, start=start_date, end=end_date)
 
     if stock_data.empty:
         print(f"No data found for ticker: {ticker}")
         return
 
+    # Calculate latest price and percent change
+    latest_price = stock_data['Adj Close'].iloc[-1]
+    initial_price = stock_data['Adj Close'].iloc[0]
+    percent_change = ((latest_price - initial_price) / initial_price) * 100
+
     plt.figure(figsize=(12, 6))
-    plt.plot(stock_data.index, stock_data['Adj Close'], label=f'{ticker} Price', color='orange')
+
+    # Plot stock price
+    plt.plot(stock_data.index, stock_data['Adj Close'], label=f'{ticker} Price\nLatest Price: ${latest_price:.2f}\nChange: {percent_change:.2f}%', color='white')
+    plt.fill_between(stock_data.index, stock_data['Adj Close'], color='darkblue', alpha=0.3)
+
+    # Adjust y-axis limits
+    plt.ylim(stock_data['Adj Close'].min() * 0.95, stock_data['Adj Close'].max() * 1.05)
 
     # Plot based on the selected plot type
     if plot_type == 'sma' and sma_period:
@@ -139,8 +161,8 @@ def plot_stock_price():
     plt.legend()
 
     plt.gca().set_facecolor('black')  # Background color of the plot
-    plt.gca().tick_params(axis='both', colors='grey')  # Color of the ticks
-    plt.grid(color='grey', linestyle='--', linewidth=0.5)  # Grid color and style
+    plt.gca().tick_params(axis='both', colors='orange')  # Color of the ticks
+    plt.grid(color='orange', linestyle='--', linewidth=0.5)  # Grid color and style
 
     plt.gcf().patch.set_facecolor('black')  # Background color of the figure
     plt.show(block=False)
@@ -227,9 +249,6 @@ def plot_portfolio_performance_chart(years):
 
 
 
-
-
-
 def gm():
     import json
     import yfinance as yf
@@ -237,7 +256,7 @@ def gm():
     from datetime import datetime
 
     # Define ANSI color codes
-    YELLOW = '\033[33m'
+    YELLOW = '\033[94m' #blue 
     LIME_GREEN = '\033[92m'
     NEON_RED = '\033[91m'
     RESET = '\033[0m'
@@ -364,7 +383,7 @@ def news():
     import webbrowser
 
     # ANSI escape codes for colors
-    YELLOW = '\033[33m'    # Yellow text
+    YELLOW = '\033[94m'    # blue text
     WHITE = '\033[97m'     # White text
     RESET = '\033[0m'      # Reset to default color
 
@@ -944,7 +963,6 @@ def ovs():
         main()
 
 def val():
-    import yfinance as yf
     ticker = input("Enter a stock ticker: ").strip()
     
     stock = yf.Ticker(ticker)
@@ -1046,6 +1064,9 @@ def val():
     # Calculate and print future FCF and final value for each growth rate
     future_fcf_values = {}
     final_value_results = {}
+    percent_return_results = {}
+    cagr_results = {}
+    
     if ttm_free_cash_flow_numeric is not None and isinstance(fcf_percent_change, (int, float)):
         for growth_rate in growth_rates:
             r = (growth_rate / 100)  # Convert percent to a decimal
@@ -1055,17 +1076,28 @@ def val():
             if shares_outstanding is not None and price_fcf_display != "No data available":
                 final_value = (future_fcf * price_fcf) / shares_outstanding
                 final_value_results[growth_rate] = final_value
+                
+                # Calculate percent return
+                percent_return = ((final_value - latest_price) / latest_price) * 100
+                percent_return_results[growth_rate] = percent_return
+                
+                # Calculate CAGR
+                cagr = (percent_return / 100 + 1) ** (1 / n) - 1
+                cagr = cagr * 100  # Convert back to percent
+                cagr_results[growth_rate] = cagr
     
-    # Print predicted FCF and final values for each growth rate
+    # Print predicted FCF, final values, percent return, and CAGR for each growth rate
     for growth_rate in growth_rates:
         future_fcf_display = f"${round(future_fcf_values[growth_rate]):,}" if growth_rate in future_fcf_values else "No data available"
         final_value_display = f"${round(final_value_results[growth_rate]):,}" if growth_rate in final_value_results else "No data available"
+        percent_return_display = f"{percent_return_results[growth_rate]:.2f}%" if growth_rate in percent_return_results else "No data available"
+        cagr_display = f"{cagr_results[growth_rate]:.2f}%" if growth_rate in cagr_results else "No data available"
+        
         print(f"\nGrowth Rate: {growth_rate:.2f}%")
         print(f"Predicted FCF in 10 Years: {future_fcf_display}")
-        print(f"Final Value ((Future FCF * Price/FCF) / Shares Issued): {final_value_display}\n")
-
-   # if __name__ == "__main__":
-       # val()
+        print(f"Final Value ((Future FCF * Price/FCF) / Shares Issued): {final_value_display}")
+        print(f"Percent Return: {percent_return_display}")
+        print(f"CAGR: {cagr_display}\n")
 
 
 def main():
