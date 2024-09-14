@@ -170,82 +170,149 @@ def plot_stock_price():
 
 
 
-def plot_portfolio_performance_chart(years):
-    import yfinance as yf
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from datetime import datetime, timedelta
-    end_date = datetime.now()
-    # Calculate start_date with float year input (handles partial years)
-    start_date = end_date - timedelta(days=float(years * 365))  # Use int() to handle fractional days
-    
-    tickers_to_plot = [ticker for ticker in portfolio if ticker != "1"]
-    total_portfolio_value = 0
-    asset_values = []
-    stock_labels = []
-    percent_changes = []
-    
-    # Iterate over each stock in the portfolio
-    for ticker in tickers_to_plot:
+def port():
+    import json
+
+    def load_portfolio(filename='portfolio.json'):
         try:
-            stock_data = yf.download(ticker, start=start_date, end=end_date)
-            
-            if stock_data.empty:
-                print(f"No data found for ticker: {ticker}")
-                continue
+            with open(filename, 'r') as file:
+                return json.load(file)
+        except FileNotFoundError:
+            print(f"File {filename} not found. Initializing with empty portfolio.")
+            return {}
+        except json.JSONDecodeError:
+            print(f"Error decoding {filename}. Initializing with empty portfolio.")
+            return {}
 
-            # Calculate the stock's total value in the portfolio
-            last_close_price = stock_data['Close'].iloc[-1]
-            asset_value = portfolio[ticker]['shares'] * last_close_price
-            asset_values.append(asset_value)
-            stock_labels.append(ticker)
-            total_portfolio_value += asset_value
-            
-            # Calculate percent change over the entered years
-            percent_change = ((last_close_price - stock_data['Close'].iloc[0]) / stock_data['Close'].iloc[0]) * 100
-            percent_changes.append(percent_change)
-            
-        except Exception as e:
-            print(f"Error processing {ticker}: {e}")
-    
-    # Normalize asset values for the pie chart
-    asset_values = np.array(asset_values)
-    asset_percentages = (asset_values / total_portfolio_value * 100).round()  # Round to nearest whole number
-    
-    # Create the pie chart for asset allocation
-    fig, axs = plt.subplots(1, 2, figsize=(16, 8), facecolor='black')
-    
-    colors = plt.cm.viridis(np.linspace(0, 1, len(tickers_to_plot)))  # Generate a colormap
-    wedges, texts = axs[0].pie(asset_percentages, labels=None, startangle=90, colors=colors)
-    
-    axs[0].set_title('Portfolio Asset Allocation', color='white')
-    
-    # Format legend with tickers and their percentages
-    legend_labels = [f"{ticker}: {percent:.0f}%" for ticker, percent in zip(stock_labels, asset_percentages)]
-    axs[0].legend(wedges, legend_labels, title="Stocks", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), fontsize=10, title_fontsize=12)
-    
-    # Plot the bar chart for percent change over the period
-    bars = axs[1].bar(stock_labels, percent_changes, color=colors, edgecolor='white')
-    axs[1].set_title(f'Portfolio Performance Over {years:.1f} Year(s)', color='white')
-    axs[1].set_xlabel('Stock Ticker', color='orange')
-    axs[1].set_ylabel('%', color='orange')
+    def save_portfolio(portfolio, filename='portfolio.json'):
+        with open(filename, 'w') as file:
+            json.dump(portfolio, file, indent=4)
 
-    # Add data labels above bars
-    for bar, percent in zip(bars, percent_changes):
-        height = bar.get_height()
-        axs[1].text(bar.get_x() + bar.get_width() / 2, height, f'{percent:.2f}%', ha='center', va='bottom', color='white')
-    
-    # Set axes and grid lines to orange
-    axs[1].tick_params(axis='x', colors='orange')
-    axs[1].tick_params(axis='y', colors='orange')
-    axs[1].grid(color='orange', linestyle='--', linewidth=0.5)
+    def main():
+        global portfolio
+        portfolio = load_portfolio()
+        
+        # Prompt the user for the number of years to plot
+        try:
+            years = float(input("Enter the number of years to plot: "))
+            plot_portfolio_performance_chart(years)
+        except ValueError:
+            print("Invalid input. Please enter a numeric value for years.")
 
-    # Set background and tick colors for both plots
-    for ax in axs:
-        ax.set_facecolor('black')
-    
-    plt.tight_layout()
-    plt.show(block=False)
+    def plot_portfolio_performance_chart(years):
+        import yfinance as yf
+        import numpy as np
+        import matplotlib.pyplot as plt
+        from datetime import datetime, timedelta
+
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=float(years * 365))  # Use float to handle fractional days
+        
+        # Filter out ticker "1"
+        tickers_to_plot = [ticker for ticker in portfolio if ticker != "1"]
+        total_portfolio_value = 0
+        asset_values = []
+        stock_labels = []
+        percent_changes = []
+        
+        # Iterate over each stock in the portfolio
+        for ticker in tickers_to_plot:
+            try:
+                stock_data = yf.download(ticker, start=start_date, end=end_date)
+                
+                if stock_data.empty:
+                    print(f"No data found for ticker: {ticker}")
+                    continue
+
+                # Calculate the stock's total value in the portfolio
+                last_close_price = stock_data['Close'].iloc[-1]
+                asset_value = portfolio[ticker]['shares'] * last_close_price
+                asset_values.append(asset_value)
+                stock_labels.append(ticker)
+                total_portfolio_value += asset_value
+                
+                # Calculate percent change over the entered years
+                percent_change = ((last_close_price - stock_data['Close'].iloc[0]) / stock_data['Close'].iloc[0]) * 100
+                percent_changes.append(percent_change)
+                
+            except Exception as e:
+                print(f"Error processing {ticker}: {e}")
+        
+        # Normalize asset values for the pie chart
+        asset_values = np.array(asset_values)
+        asset_percentages = (asset_values / total_portfolio_value * 100).round()  # Round to nearest whole number
+        
+        # Create the pie chart for asset allocation
+        fig, axs = plt.subplots(1, 2, figsize=(16, 8), facecolor='black')
+        
+        colors = plt.cm.viridis(np.linspace(0, 1, len(tickers_to_plot)))  # Generate a colormap
+        wedges, texts = axs[0].pie(asset_percentages, labels=None, startangle=90, colors=colors)
+        
+        axs[0].set_title('Portfolio Asset Allocation', color='white')
+        
+        # Format legend with tickers and their percentages
+        legend_labels = [f"{ticker}: {percent:.0f}%" for ticker, percent in zip(stock_labels, asset_percentages)]
+        axs[0].legend(wedges, legend_labels, title="Stocks", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), fontsize=10, title_fontsize=12)
+        
+        # Plot the bar chart for percent change over the period
+        bars = axs[1].bar(stock_labels, percent_changes, color=colors, edgecolor='white')
+        axs[1].set_title(f'Portfolio Performance Over {years:.1f} Year(s)', color='white')
+        axs[1].set_xlabel('Stock Ticker', color='orange')
+        axs[1].set_ylabel('%', color='orange')
+
+        # Add data labels above bars
+        for bar, percent in zip(bars, percent_changes):
+            height = bar.get_height()
+            axs[1].text(bar.get_x() + bar.get_width() / 2, height, f'{percent:.2f}%', ha='center', va='bottom', color='white')
+        
+        # Set axes and grid lines to orange
+        axs[1].tick_params(axis='x', colors='orange')
+        axs[1].tick_params(axis='y', colors='orange')
+        axs[1].grid(color='orange', linestyle='--', linewidth=0.5)
+
+        # Set background and tick colors for both plots
+        for ax in axs:
+            ax.set_facecolor('black')
+        
+        plt.tight_layout()
+        plt.show(block=False)
+        
+        # Prompt to add or remove a position or do nothing
+        while True:
+            action = input("Do you want to (A)dd a position, (R)emove a position, or (N)othing? ").strip().upper()
+            if action == 'A':
+                add_position()
+            elif action == 'R':
+                remove_position()
+            elif action == 'N':
+                print("No changes made to the portfolio.")
+                break
+            else:
+                print("Invalid option. Please choose (A)dd, (R)emove, or (N)othing.")
+
+    def add_position():
+        ticker = input("Enter ticker: ")
+        cost_basis = float(input("Enter cost basis: "))
+        shares = float(input("Enter number of shares: "))
+        portfolio[ticker] = {'shares': shares, 'cost_basis': cost_basis}
+        save_portfolio(portfolio)
+        print(f"Added {ticker} to portfolio.")
+
+    def remove_position():
+        ticker = input("Enter ticker to remove: ")
+        if ticker in portfolio:
+            del portfolio[ticker]
+            save_portfolio(portfolio)
+            print(f"Removed {ticker} from portfolio.")
+        else:
+            print("Ticker not found in portfolio.")
+
+    def save_portfolio(portfolio, filename='portfolio.json'):
+        with open(filename, 'w') as file:
+            json.dump(portfolio, file, indent=4)
+
+    if __name__ == "__main__":
+        main()
 
 
 
@@ -369,14 +436,6 @@ def gm():
         if response == 'y':
             open_websites()
 
-
-def add_position():
-    ticker = input("Enter ticker: ")
-    cost_basis = float(input("Enter cost basis: "))
-    shares = float(input("Enter number of shares: "))
-    portfolio[ticker] = {'shares': shares, 'cost_basis': cost_basis}
-    save_portfolio(portfolio)
-    print(f"Added {ticker} to portfolio.")
 
 def news():
     import yfinance as yf
@@ -663,14 +722,6 @@ def sim():
     plt.show(block=False)
     
 
-def remove_position():
-    ticker = input("Enter ticker to remove: ")
-    if ticker in portfolio:
-        del portfolio[ticker]
-        save_portfolio(portfolio)
-        print(f"Removed {ticker} from portfolio.")
-    else:
-        print("Ticker not found in portfolio.")
 
 def cc():
     import yfinance as yf
@@ -1036,15 +1087,21 @@ def val():
 
 def dcf():
     import webbrowser
+    import sys
+
     # Helper function to parse user input with M (Million) or B (Billion) suffix
     def parse_number_input(input_str):
-        input_str = input_str.upper()
-        if input_str.endswith('M'):
-            return float(input_str[:-1]) * 1_000_000
-        elif input_str.endswith('B'):
-            return float(input_str[:-1]) * 1_000_000_000
-        else:
-            return float(input_str)
+        try:
+            input_str = input_str.upper()
+            if input_str.endswith('M'):
+                return float(input_str[:-1]) * 1_000_000
+            elif input_str.endswith('B'):
+                return float(input_str[:-1]) * 1_000_000_000
+            else:
+                return float(input_str)
+        except ValueError:
+            print("Invalid number format. Please enter a valid number.")
+            sys.exit()
 
     # Function to compute intrinsic value given a growth rate
     def compute_intrinsic_value(ttm_fcf, fcf_growth_rate, wacc, terminal_growth_rate, projection_years, net_debt, shares_outstanding):
@@ -1058,6 +1115,9 @@ def dcf():
 
         # Terminal Value and discounting
         terminal_fcf = projected_fcfs[-1] * (1 + terminal_growth_rate)
+        if wacc <= terminal_growth_rate:
+            print("WACC must be greater than the terminal growth rate.")
+            sys.exit()
         terminal_value = terminal_fcf / (wacc - terminal_growth_rate)
         discounted_terminal_value = terminal_value / (1 + wacc) ** projection_years
 
@@ -1068,22 +1128,6 @@ def dcf():
         # Intrinsic Value per Share
         intrinsic_value_per_share = equity_value / shares_outstanding
         return intrinsic_value_per_share
-
-    # Find FCF growth rate needed for intrinsic value to equal the stock price
-    def find_required_fcf_growth_rate(target_price, ttm_fcf, wacc, terminal_growth_rate, projection_years, net_debt, shares_outstanding):
-        low, high = -1.0, 1.0  # Start with a wide range for the growth rate (from -100% to +100%)
-        tolerance = 0.0001  # Accuracy level
-
-        while high - low > tolerance:
-            mid = (low + high) / 2
-            intrinsic_value = compute_intrinsic_value(ttm_fcf, mid, wacc, terminal_growth_rate, projection_years, net_debt, shares_outstanding)
-
-            if intrinsic_value < target_price:
-                low = mid
-            else:
-                high = mid
-        
-        return (low + high) / 2  # Return the average of low and high as the final growth rate
 
     # Prompt for ticker symbol and open financial links
     ticker = input("Enter a stock ticker: ").strip()
@@ -1110,14 +1154,6 @@ def dcf():
     # Output the intrinsic value per share
     print(f"\nIntrinsic Value per Share: ${intrinsic_value_per_share:,.2f}")
 
-    # Calculate the required FCF growth rate for intrinsic value to match the stock price
-    required_fcf_growth_rate = find_required_fcf_growth_rate(latest_price, ttm_free_cash_flow, wacc, terminal_growth_rate, projection_years, net_debt, shares_outstanding)
-
-    # Output the required FCF growth rate
-    print(f"Required FCF Growth Rate for Intrinsic Value to Equal Current Price: {required_fcf_growth_rate * 100:.2f}%")
-
-   # if __name__ == "__main__":
-        #dcf()
 
 
 
@@ -1128,13 +1164,12 @@ def main():
         print("[gm]   [des]  [fvn]")
         print("[sa]   [fv]   [hol] ")
         print("[ins]  [sum]  [fs] ")
-        print("[rs]   [port] [add]")
-        print("[edit] [10k]  [10q] ")
-        print("[op]   [sim]  [ovs]")
-        print("[vic]  [gain] [val]")
-        print("[dcf]  [q]")
+        print("[rs]   [port] [10k]")
+        print("[10q]  [op]   [sim] ")
+        print("[ovs]  [vic]  [gain]")
+        print("[val]  [dcf]  [q]")
+     
         
-
         choice = input("Choose an option: ").strip()
         
         if choice == 'ch':
@@ -1199,18 +1234,11 @@ def main():
             import webbrowser
             webbrowser.open(url)
         elif choice == 'port':
-            try:
-                years = int(input("Enter number of years for portfolio performance chart: ").strip())
-                if years <= 0:
-                    raise ValueError("The number of years must be a positive integer.")
-            except ValueError as e:
-                print(f"Invalid input: {e}")
-            else:
-                plot_portfolio_performance_chart(years)
-        elif choice == 'add':
-            add_position()
-        elif choice == 'edit':
-            remove_position()
+            port()
+        #elif choice == 'add':
+           # add_position()
+       # elif choice == 'edit':
+           # remove_position()
         elif choice == 'des':
             des()
         elif choice == 'fvn':
