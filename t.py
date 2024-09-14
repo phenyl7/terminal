@@ -963,141 +963,162 @@ def ovs():
         main()
 
 def val():
-    ticker = input("Enter a stock ticker: ").strip()
-    
-    stock = yf.Ticker(ticker)
-    stock_info = stock.history(period="1d")
-    stock_summary = stock.info
-    
-    # Fetching quarterly financials and cash flow
-    quarterly_financials = stock.quarterly_financials
-    quarterly_cashflow = stock.quarterly_cashflow
-    annual_cashflow = stock.cashflow
-    
-    # Calculate TTM Gross Profit
-    if not quarterly_financials.empty and 'Gross Profit' in quarterly_financials.index:
-        quarterly_financials = quarterly_financials.T.sort_index(ascending=False)
-        gross_profit_quarters = quarterly_financials.loc[:, 'Gross Profit'].dropna().head(4)
-        ttm_gross_profit = gross_profit_quarters.sum() if len(gross_profit_quarters) == 4 else "Not enough data"
-        ttm_gross_profit = f"{round(ttm_gross_profit):,}" if isinstance(ttm_gross_profit, (int, float)) else ttm_gross_profit
-    else:
-        ttm_gross_profit = "No data available"
-    
-    # Calculate TTM Free Cash Flow
-    if not quarterly_cashflow.empty and 'Free Cash Flow' in quarterly_cashflow.index:
-        quarterly_cashflow = quarterly_cashflow.T.sort_index(ascending=False)
-        free_cash_flow_quarters = quarterly_cashflow.loc[:, 'Free Cash Flow'].dropna().head(4)
-        ttm_free_cash_flow = free_cash_flow_quarters.sum() if len(free_cash_flow_quarters) == 4 else "Not enough data"
-        ttm_free_cash_flow_numeric = ttm_free_cash_flow if isinstance(ttm_free_cash_flow, (int, float)) else None
-        ttm_free_cash_flow = f"{round(ttm_free_cash_flow):,}" if isinstance(ttm_free_cash_flow, (int, float)) else ttm_free_cash_flow
-    else:
-        ttm_free_cash_flow = "No data available"
-        ttm_free_cash_flow_numeric = None
-    
-    # Fetch other data
-    book_value = stock_summary.get('bookValue', None)
-    latest_price = round(stock_info['Close'].iloc[-1]) if not stock_info.empty else "No data available"
-    market_cap = stock_summary.get('marketCap', None)
-    shares_outstanding = stock_summary.get('sharesOutstanding', None)
-    
-    if market_cap is not None:
-        market_cap_numeric = market_cap
-        market_cap = f"{round(market_cap):,}"
-    else:
-        market_cap_numeric = None
-        market_cap = "No data available"
-    
-    if shares_outstanding is not None:
-        shares_outstanding = float(shares_outstanding)
-        shares_outstanding_display = f"{round(shares_outstanding):,}"
-    else:
-        shares_outstanding = None
-        shares_outstanding_display = "No data available"
-    
-    # Calculate FCF per Share
-    if ttm_free_cash_flow_numeric is not None and shares_outstanding is not None:
-        fcf_per_share = round(ttm_free_cash_flow_numeric / shares_outstanding, 2)
-        fcf_per_share = f"${fcf_per_share:,.2f}"
-    else:
-        fcf_per_share = "No data available"
-    
-    if book_value is not None:
-        book_value = f"{round(book_value):,}"
-    else:
-        book_value = "No data available"
-    
-    # Calculate Price/FCF (Market Cap / TTM Free Cash Flow)
-    if ttm_free_cash_flow_numeric is not None and market_cap_numeric is not None:
-        price_fcf = round(market_cap_numeric / ttm_free_cash_flow_numeric, 2)
-        price_fcf_display = f"{price_fcf:,.2f}"
-    else:
-        price_fcf_display = "No data available"
-    
-    # Calculate percent change in annual Free Cash Flow between the last two years
-    if not annual_cashflow.empty and 'Free Cash Flow' in annual_cashflow.index:
-        annual_cashflow = annual_cashflow.T.sort_index(ascending=False)
-        free_cash_flow_years = annual_cashflow.loc[:, 'Free Cash Flow'].dropna().head(2)
-        if len(free_cash_flow_years) == 2:
-            fcf_percent_change = ((free_cash_flow_years.iloc[0] - free_cash_flow_years.iloc[1]) / free_cash_flow_years.iloc[1]) * 100
-            fcf_percent_change_display = f"{fcf_percent_change:.2f}%"
+    import webbrowser
+    def parse_number_input(input_str):
+        # Handle M for million and B for billion
+        if input_str[-1].upper() == 'M':
+            return float(input_str[:-1]) * 1_000_000
+        elif input_str[-1].upper() == 'B':
+            return float(input_str[:-1]) * 1_000_000_000
         else:
-            fcf_percent_change_display = "Not enough data"
-    else:
-        fcf_percent_change_display = "No data available"
-    
+            return float(input_str)
+
+    ticker = input("Enter a stock ticker: ").strip()
+
+    # Automatically open the relevant links with the ticker included
+    roic_link = f"https://www.roic.ai/quote/{ticker}/financials"
+    stockanalysis_link = f"https://stockanalysis.com/stocks/{ticker}/financials/"
+
+    webbrowser.open(roic_link)
+    webbrowser.open(stockanalysis_link)
+
+    # Allow the user to enter values manually
+    latest_price = parse_number_input(input("share $: ").strip())
+    market_cap = parse_number_input(input("MC: ").strip())
+    #ttm_gross_profit = parse_number_input(input("TTM Gross Profit: ").strip())
+    ttm_free_cash_flow = parse_number_input(input("TTM FCF: ").strip())
+    shares_outstanding = parse_number_input(input("Total Share #: ").strip())
+    #book_value = parse_number_input(input("BV/SH: ").strip())
+
+    # Calculate FCF per Share
+    fcf_per_share = round(ttm_free_cash_flow / shares_outstanding, 2)
+    fcf_per_share_display = f"${fcf_per_share:,.2f}"
+
+    # Calculate Price/FCF (Market Cap / TTM Free Cash Flow)
+    price_fcf = round(market_cap / ttm_free_cash_flow, 2)
+    price_fcf_display = f"{price_fcf:,.2f}"
+
     # Print all information
-    print(f"Ticker: {ticker.upper()}")
-    print(f"Price: ${latest_price}")
-    print(f"MC: ${market_cap}")
-    print(f"TTM Profit: ${ttm_gross_profit}")
-    print(f"TTM Free Cash Flow: ${ttm_free_cash_flow}")
-    print(f"Shares Issued: {shares_outstanding_display}")
-    print(f"BV/SH: ${book_value}")
-    print(f"FCF/SH: {fcf_per_share}")
+    print(f"\nTicker: {ticker.upper()}")
+    print(f"Price: ${latest_price:,.2f}")
+    print(f"MC: ${market_cap:,.0f}")
+    #print(f"TTM Profit: ${ttm_gross_profit:,.0f}")
+    print(f"TTM Free Cash Flow: ${ttm_free_cash_flow:,.0f}")
+    print(f"Shares Issued: {shares_outstanding:,.0f}")
+    #print(f"BV/SH: ${book_value:,.2f}")
+    print(f"FCF/SH: {fcf_per_share_display}")
     print(f"Price/FCF: {price_fcf_display}")
-    print(f"Annual FCF Percent Change (Last 2 Years): {fcf_percent_change_display}")
-    
+
     # Prompt for multiple growth rates
     growth_rates_input = input("Enter growth rates to test (%) : ").strip()
     growth_rates = [float(rate.strip()) for rate in growth_rates_input.split(',')]
-    
+
     # Calculate and print future FCF and final value for each growth rate
-    future_fcf_values = {}
-    final_value_results = {}
-    percent_return_results = {}
-    cagr_results = {}
-    
-    if ttm_free_cash_flow_numeric is not None and isinstance(fcf_percent_change, (int, float)):
-        for growth_rate in growth_rates:
-            r = (growth_rate / 100)  # Convert percent to a decimal
-            n = 10  # 10 years
-            future_fcf = ttm_free_cash_flow_numeric * (1 + r) ** n
-            future_fcf_values[growth_rate] = future_fcf
-            if shares_outstanding is not None and price_fcf_display != "No data available":
-                final_value = (future_fcf * price_fcf) / shares_outstanding
-                final_value_results[growth_rate] = final_value
-                
-                # Calculate percent return
-                percent_return = ((final_value - latest_price) / latest_price) * 100
-                percent_return_results[growth_rate] = percent_return
-                
-                # Calculate CAGR
-                cagr = (percent_return / 100 + 1) ** (1 / n) - 1
-                cagr = cagr * 100  # Convert back to percent
-                cagr_results[growth_rate] = cagr
-    
-    # Print predicted FCF, final values, percent return, and CAGR for each growth rate
     for growth_rate in growth_rates:
-        future_fcf_display = f"${round(future_fcf_values[growth_rate]):,}" if growth_rate in future_fcf_values else "No data available"
-        final_value_display = f"${round(final_value_results[growth_rate]):,}" if growth_rate in final_value_results else "No data available"
-        percent_return_display = f"{percent_return_results[growth_rate]:.2f}%" if growth_rate in percent_return_results else "No data available"
-        cagr_display = f"{cagr_results[growth_rate]:.2f}%" if growth_rate in cagr_results else "No data available"
-        
+        r = (growth_rate / 100)
+        n = 10  # 10 years
+        future_fcf = ttm_free_cash_flow * (1 + r) ** n
+        final_value = (future_fcf * price_fcf) / shares_outstanding
+        percent_return = ((final_value - latest_price) / latest_price) * 100
+        cagr = (percent_return / 100 + 1) ** (1 / n) - 1
+        cagr = cagr * 100
+
+        # Display calculations
         print(f"\nGrowth Rate: {growth_rate:.2f}%")
-        print(f"Predicted FCF in 10 Years: {future_fcf_display}")
-        print(f"Final Value ((Future FCF * Price/FCF) / Shares Issued): {final_value_display}")
-        print(f"Percent Return: {percent_return_display}")
-        print(f"CAGR: {cagr_display}\n")
+        print(f"Predicted FCF in 10 Years: ${round(future_fcf):,}")
+        print(f"Final Value ((Future FCF * Price/FCF) / Shares Issued): ${round(final_value):,}")
+        print(f"Percent Return: {percent_return:.2f}%")
+        print(f"CAGR: {cagr:.2f}%\n")
+
+   # if __name__ == "__main__":
+        #val()
+
+
+def dcf():
+    import webbrowser
+    # Helper function to parse user input with M (Million) or B (Billion) suffix
+    def parse_number_input(input_str):
+        input_str = input_str.upper()
+        if input_str.endswith('M'):
+            return float(input_str[:-1]) * 1_000_000
+        elif input_str.endswith('B'):
+            return float(input_str[:-1]) * 1_000_000_000
+        else:
+            return float(input_str)
+
+    # Function to compute intrinsic value given a growth rate
+    def compute_intrinsic_value(ttm_fcf, fcf_growth_rate, wacc, terminal_growth_rate, projection_years, net_debt, shares_outstanding):
+        projected_fcfs = []
+        discounted_fcfs = []
+        for i in range(projection_years):
+            fcf = ttm_fcf * (1 + fcf_growth_rate) ** (i + 1)
+            projected_fcfs.append(fcf)
+            discounted_fcf = fcf / (1 + wacc) ** (i + 1)
+            discounted_fcfs.append(discounted_fcf)
+
+        # Terminal Value and discounting
+        terminal_fcf = projected_fcfs[-1] * (1 + terminal_growth_rate)
+        terminal_value = terminal_fcf / (wacc - terminal_growth_rate)
+        discounted_terminal_value = terminal_value / (1 + wacc) ** projection_years
+
+        # Enterprise Value and Equity Value
+        enterprise_value = sum(discounted_fcfs) + discounted_terminal_value
+        equity_value = enterprise_value - net_debt
+
+        # Intrinsic Value per Share
+        intrinsic_value_per_share = equity_value / shares_outstanding
+        return intrinsic_value_per_share
+
+    # Find FCF growth rate needed for intrinsic value to equal the stock price
+    def find_required_fcf_growth_rate(target_price, ttm_fcf, wacc, terminal_growth_rate, projection_years, net_debt, shares_outstanding):
+        low, high = -1.0, 1.0  # Start with a wide range for the growth rate (from -100% to +100%)
+        tolerance = 0.0001  # Accuracy level
+
+        while high - low > tolerance:
+            mid = (low + high) / 2
+            intrinsic_value = compute_intrinsic_value(ttm_fcf, mid, wacc, terminal_growth_rate, projection_years, net_debt, shares_outstanding)
+
+            if intrinsic_value < target_price:
+                low = mid
+            else:
+                high = mid
+        
+        return (low + high) / 2  # Return the average of low and high as the final growth rate
+
+    # Prompt for ticker symbol and open financial links
+    ticker = input("Enter a stock ticker: ").strip()
+    roic_link = f"https://www.roic.ai/quote/{ticker}/financials"
+    stockanalysis_link = f"https://stockanalysis.com/stocks/{ticker}/financials/"
+    webbrowser.open(roic_link)
+    webbrowser.open(stockanalysis_link)
+
+    # Gather required inputs
+    latest_price = parse_number_input(input("Enter the latest stock price: ").strip())
+    ttm_free_cash_flow = parse_number_input(input("Enter the TTM Free Cash Flow (e.g., 300M or 0.3B): ").strip())
+    shares_outstanding = parse_number_input(input("Enter the number of shares outstanding (e.g., 1000M or 1B): ").strip())
+    net_debt = parse_number_input(input("Enter the Net Debt (e.g., 100M or 0.1B): ").strip())
+    wacc = float(input("Enter the Discount Rate (WACC) (e.g., 8 for 8%): ").strip()) / 100
+    terminal_growth_rate = float(input("Enter the Terminal Growth Rate (e.g., 3 for 3%): ").strip()) / 100
+    projection_years = int(input("Enter the number of projection years (e.g., 10): ").strip())
+
+    # Single FCF growth rate for all years
+    fcf_growth_rate = float(input("Enter the FCF growth rate (e.g., 5 for 5%): ").strip()) / 100
+
+    # Calculate projected Free Cash Flows and their present value
+    intrinsic_value_per_share = compute_intrinsic_value(ttm_free_cash_flow, fcf_growth_rate, wacc, terminal_growth_rate, projection_years, net_debt, shares_outstanding)
+
+    # Output the intrinsic value per share
+    print(f"\nIntrinsic Value per Share: ${intrinsic_value_per_share:,.2f}")
+
+    # Calculate the required FCF growth rate for intrinsic value to match the stock price
+    required_fcf_growth_rate = find_required_fcf_growth_rate(latest_price, ttm_free_cash_flow, wacc, terminal_growth_rate, projection_years, net_debt, shares_outstanding)
+
+    # Output the required FCF growth rate
+    print(f"Required FCF Growth Rate for Intrinsic Value to Equal Current Price: {required_fcf_growth_rate * 100:.2f}%")
+
+   # if __name__ == "__main__":
+        #dcf()
+
 
 
 def main():
@@ -1111,7 +1132,7 @@ def main():
         print("[edit] [10k]  [10q] ")
         print("[op]   [sim]  [ovs]")
         print("[vic]  [gain] [val]")
-        print("[q]")
+        print("[dcf]  [q]")
         
 
         choice = input("Choose an option: ").strip()
@@ -1209,6 +1230,8 @@ def main():
             webbrowser.open("https://stockanalysis.com/markets/gainers/month/")
         elif choice == 'val':
             val()
+        elif choice == 'dcf':
+            dcf()
         elif choice == 'q':
             break
         else:
