@@ -730,17 +730,34 @@ def candles():
     import mplfinance as mpf
     from datetime import datetime
     import pandas as pd
+    import mplcursors
 
     def plot_candlestick(ticker, time_frame):
+        # Current date
         end_date = datetime.today().strftime('%Y-%m-%d')
-        start_date = (pd.Timestamp.today() - pd.DateOffset(years=time_frame)).strftime('%Y-%m-%d')
 
+        # Handle different time frame inputs
+        if time_frame.endswith('d'):
+            days = int(time_frame[:-1])
+            start_date = (pd.Timestamp.today() - pd.DateOffset(days=days)).strftime('%Y-%m-%d')
+        elif time_frame.endswith('m'):
+            months = int(time_frame[:-1])
+            start_date = (pd.Timestamp.today() - pd.DateOffset(months=months)).strftime('%Y-%m-%d')
+        elif time_frame.endswith('y'):
+            years = int(time_frame[:-1])
+            start_date = (pd.Timestamp.today() - pd.DateOffset(years=years)).strftime('%Y-%m-%d')
+        else:
+            print("Invalid time frame. Please enter in the format like '1d', '3m', or '2y'.")
+            return
+
+        # Download stock data
         stock_data = yf.download(ticker, start=start_date, end=end_date)
 
         if stock_data.empty:
             print(f"No data found for {ticker}. Please check the ticker symbol.")
             return
 
+        # Customize the market color and style
         market_colors = mpf.make_marketcolors(up='#00FF00', down='#FF0000',
                                             wick={'up': '#00FF00', 'down': '#FF0000'},
                                             edge={'up': '#00FF00', 'down': '#FF0000'},
@@ -752,26 +769,47 @@ def candles():
                                     'grid.color': 'white', 'grid.linestyle': '--',
                                     'font.size': 5, 'axes.titlesize': 5, 'axes.labelsize': 5})
 
+        # Create the plot
         fig, axes = mpf.plot(stock_data, type='candle', style=style,
-                            title=f'{ticker.upper()} ({time_frame} Y)',
+                            title=f'{ticker.upper()} ({time_frame})',
                             ylabel='Price (USD)', volume=True, figsize=(15, 8),
                             tight_layout=True, returnfig=True,
-                            figratio=(16,9),  # Widescreen aspect ratio
-                            panel_ratios=(6,2),  # Adjust ratio between price and volume panels
+                            figratio=(16, 9),  # Widescreen aspect ratio
+                            panel_ratios=(6, 2),  # Adjust ratio between price and volume panels
                             )
 
-        # Further adjust the layout to minimize margins
-        plt.subplots_adjust(left=0.01, right=0.99, top=0.95, bottom=0.01)
+        # Add cursor functionality with larger text and box
+        cursor = mplcursors.cursor(axes[0].collections[0], hover=True)
+        cursor.connect("add", lambda sel: sel.annotation.set(
+            text=cursor_annotation(sel),
+            bbox=dict(facecolor='#000080', edgecolor='#000080', alpha=1, boxstyle='round,pad=0.1'),
+            color='white',
+            fontsize=7  # Increase the font size
+        ))
+        
+        def cursor_annotation(sel):
+            x = int(sel.target[0])
+            if 0 <= x < len(stock_data):
+                date = stock_data.index[x]
+                row = stock_data.iloc[x]
+                return (f"Date: {date.strftime('%Y-%m-%d')}\n"
+                        f"Close: {row['Close']:.2f}\n"
+                        f"Volume: {row['Volume']:,}")
+            return None  # Return None for invalid data points
 
-        # Adjust the spacing between subplots
-        plt.tight_layout(pad=0.5)
+        cursor.connect("add", lambda sel: sel.annotation.set_text(cursor_annotation(sel)))
+
+        # Adjust the layout to minimize margins
+        plt.subplots_adjust(left=0.01, right=0.99, top=0.95, bottom=0.01)
 
         plt.show(block=False)
 
     if __name__ == "__main__":
         ticker = input("Enter the stock ticker symbol (e.g., AAPL): ").upper()
-        time_frame = float(input("Enter the time frame in years (e.g., 1 for 1 year): "))
+        time_frame = input("Enter the time frame (e.g., 1d, 3m, 1y): ").lower()
         plot_candlestick(ticker, time_frame)
+
+
 
 
 def cc():
