@@ -38,134 +38,137 @@ def get_stock_data(ticker):
 
 
 
-def plot_stock_price():
+def plot():
     import matplotlib.pyplot as plt
     import yfinance as yf
+    import numpy as np
     from datetime import datetime, timedelta
-    from fractions import Fraction
-    # Prompt for ticker and years
-    ticker = input("Enter ticker: ")
-    years_input = input("Enter years: ")
+    import sys
+    import traceback
 
-    # Convert fractional input to float
-    try:
-        years = float(Fraction(years_input))
-    except ValueError:
-        print("Invalid input for years. Exiting.")
-        return
+    def log_message(message):
+        print(message)
+        sys.stdout.flush()  # Ensure the message is immediately printed
 
-    # Define the plot types and ask the user to select one
-    print("Select plot type:")
-    print("1. SMA")
-    print("2. Bollinger Bands")
-    print("3. RSI")
-    print("4. MACD")
-    print("5. Ichimoku Cloud")
+    def parse_time_frame(time_frame_input):
+        try:
+            if time_frame_input.endswith('m'):
+                months = int(time_frame_input[:-1])
+                return timedelta(days=months * 30)  # Approximate days in a month
+            elif time_frame_input.endswith('y'):
+                years = int(time_frame_input[:-1])
+                return timedelta(days=years * 365)
+            else:
+                raise ValueError("Invalid time frame format. Use 'Xm' for months or 'Xy' for years.")
+        except ValueError as e:
+            log_message(f"Error parsing time frame: {e}")
+            return None
 
-    plot_choice = input("Enter the number of your choice: ")
-    plot_type = None
-    sma_period = None
+    def calculate_rsi(data, periods=14):
+        try:
+            delta = data.diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=periods).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=periods).mean()
+            rs = gain / loss
+            return 100 - (100 / (1 + rs))
+        except Exception as e:
+            log_message(f"Error calculating RSI: {e}")
+            return None
 
-    if plot_choice == '1':
-        plot_type = 'sma'
-        sma_period = int(input("Enter SMA period (0 to skip): "))
-    elif plot_choice == '2':
-        plot_type = 'bollinger'
-        sma_period = int(input("Enter Bollinger Bands period (0 to skip): "))
-    elif plot_choice == '3':
-        plot_type = 'rsi'
-    elif plot_choice == '4':
-        plot_type = 'macd'
-    elif plot_choice == '5':
-        plot_type = 'ichimoku'
-    else:
-        print("Invalid choice. Exiting.")
-        return
+    def plot_stock_price():
+        try:
+            # Prompt for ticker and time frame
+            ticker = input("Enter the stock ticker: ")
+            time_frame_input = input("Enter the time frame (e.g., 6m for 6 months, 1y for 1 year): ")
 
-    # Download stock data
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=int(years * 365.25))  # Approximate number of days for given years
-    stock_data = yf.download(ticker, start=start_date, end=end_date)
+            log_message(f"Fetching data for {ticker} over the last {time_frame_input}...")
 
-    if stock_data.empty:
-        print(f"No data found for ticker: {ticker}")
-        return
+            # Parse the time frame
+            time_delta = parse_time_frame(time_frame_input)
+            if time_delta is None:
+                return
 
-    # Calculate latest price and percent change
-    latest_price = stock_data['Adj Close'].iloc[-1]
-    initial_price = stock_data['Adj Close'].iloc[0]
-    percent_change = ((latest_price - initial_price) / initial_price) * 100
+            # Download stock data
+            end_date = datetime.now()
+            start_date = end_date - time_delta
+            log_message(f"Downloading data from {start_date} to {end_date}")
+            stock_data = yf.download(ticker, start=start_date, end=end_date)
 
-    plt.figure(figsize=(12, 6))
+            if stock_data.empty:
+                log_message(f"No data found for ticker: {ticker}")
+                return
 
-    # Plot stock price
-    plt.plot(stock_data.index, stock_data['Adj Close'], label=f'{ticker} Price\nLatest Price: ${latest_price:.2f}\nChange: {percent_change:.2f}%', color='white')
-    plt.fill_between(stock_data.index, stock_data['Adj Close'], color='darkblue', alpha=0.3)
+            log_message(f"Data fetched successfully. Processing {len(stock_data)} data points...")
 
-    # Adjust y-axis limits
-    plt.ylim(stock_data['Adj Close'].min() * 0.95, stock_data['Adj Close'].max() * 1.05)
+            # Calculate RSI
+            stock_data['RSI'] = calculate_rsi(stock_data['Adj Close'])
 
-    # Plot based on the selected plot type
-    if plot_type == 'sma' and sma_period:
-        stock_data['SMA'] = stock_data['Adj Close'].rolling(window=sma_period).mean()
-        plt.plot(stock_data.index, stock_data['SMA'], label=f'SMA {sma_period}', color='blue')
+            # Calculate latest price and percent change
+            latest_price = stock_data['Adj Close'].iloc[-1]
+            initial_price = stock_data['Adj Close'].iloc[0]
+            percent_change = ((latest_price - initial_price) / initial_price) * 100
 
-    elif plot_type == 'bollinger' and sma_period:
-        sma = stock_data['Adj Close'].rolling(window=sma_period).mean()
-        rstd = stock_data['Adj Close'].rolling(window=sma_period).std()
-        stock_data['Bollinger High'] = sma + 2 * rstd
-        stock_data['Bollinger Low'] = sma - 2 * rstd
-        plt.plot(stock_data.index, stock_data['Bollinger High'], label='Bollinger High', color='green')
-        plt.plot(stock_data.index, stock_data['Bollinger Low'], label='Bollinger Low', color='red')
+            log_message(f"Creating plot for {ticker}...")
 
-    elif plot_type == 'rsi':
-        delta = stock_data['Adj Close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-        rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
-        plt.plot(stock_data.index, rsi, label='RSI', color='purple')
-        plt.axhline(70, linestyle='--', color='red')
-        plt.axhline(30, linestyle='--', color='green')
+            # Create subplots
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), gridspec_kw={'height_ratios': [2, 1]}, sharex=True)
+            fig.subplots_adjust(hspace=0.1)
 
-    elif plot_type == 'macd':
-        short_ema = stock_data['Adj Close'].ewm(span=12, adjust=False).mean()
-        long_ema = stock_data['Adj Close'].ewm(span=26, adjust=False).mean()
-        macd = short_ema - long_ema
-        signal = macd.ewm(span=9, adjust=False).mean()
-        plt.plot(stock_data.index, macd, label='MACD', color='blue')
-        plt.plot(stock_data.index, signal, label='Signal Line', color='red')
+            # Plot stock price on the first axis
+            ax1.plot(stock_data.index, stock_data['Adj Close'], color='white')
+            ax1.fill_between(stock_data.index, stock_data['Adj Close'], color='darkblue', alpha=0.4)
+            ax1.set_ylim(stock_data['Adj Close'].min() * 0.95, stock_data['Adj Close'].max() * 1.05)
+            ax1.set_title(f'{ticker} {time_frame_input}', color='white')
+            ax1.set_ylabel('Price', color='white')
+            ax1.legend()
+            ax1.set_facecolor('black')
+            ax1.tick_params(axis='both', colors='orange')
+            ax1.grid(color='orange', linestyle='--', linewidth=0.5)
 
-    elif plot_type == 'ichimoku':
-        high_9 = stock_data['High'].rolling(window=9).max()
-        low_9 = stock_data['Low'].rolling(window=9).min()
-        stock_data['Tenkan-sen'] = (high_9 + low_9) / 2
-        
-        high_26 = stock_data['High'].rolling(window=26).max()
-        low_26 = stock_data['Low'].rolling(window=26).min()
-        stock_data['Kijun-sen'] = (high_26 + low_26) / 2
-        
-        stock_data['Senkou Span A'] = ((stock_data['Tenkan-sen'] + stock_data['Kijun-sen']) / 2).shift(26)
-        stock_data['Senkou Span B'] = ((stock_data['High'].rolling(window=52).max() + stock_data['Low'].rolling(window=52).min()) / 2).shift(26)
-        stock_data['Chikou Span'] = stock_data['Adj Close'].shift(-26)
-        
-        plt.plot(stock_data.index, stock_data['Tenkan-sen'], label='Tenkan-sen', color='cyan')
-        plt.plot(stock_data.index, stock_data['Kijun-sen'], label='Kijun-sen', color='magenta')
-        plt.plot(stock_data.index, stock_data['Senkou Span A'], label='Senkou Span A', color='green')
-        plt.plot(stock_data.index, stock_data['Senkou Span B'], label='Senkou Span B', color='red')
-        plt.plot(stock_data.index, stock_data['Chikou Span'], label='Chikou Span', color='blue')
+            # Add text annotation for latest price and percent change
+            ax1.text(0.02, 0.95, f'Latest Price: ${latest_price:.2f}\nChange: {percent_change:.2f}%', 
+                    transform=ax1.transAxes, color='white', verticalalignment='top',
+                    bbox=dict(facecolor='black', edgecolor='white', alpha=0.7))
 
-    plt.title(f'{ticker} Stock Price Over the Last {years} Years', color='white')
-    plt.xlabel('Date', color='white')
-    plt.ylabel('Value', color='white')
-    plt.legend()
+            # Plot RSI on the second axis
+            ax2.plot(stock_data.index, stock_data['RSI'], color='white', label='RSI')
+            ax2.axhline(y=70, color='grey', linestyle='--', alpha=0.5)
+            ax2.axhline(y=30, color='grey', linestyle='--', alpha=0.5)
+            ax2.fill_between(stock_data.index, stock_data['RSI'], 70, where=(stock_data['RSI'] >= 70), color='grey', alpha=0.8)
+            ax2.fill_between(stock_data.index, stock_data['RSI'], 30, where=(stock_data['RSI'] <= 30), color='grey', alpha=0.8)
+            ax2.set_ylabel('RSI', color='white')
+            ax2.set_ylim(0, 100)
+            ax2.tick_params(axis='y', colors='orange')
+            ax2.set_facecolor('black')
+            ax2.grid(color='orange', linestyle='--', linewidth=0.5)
+            ax2.set_xlabel('Date', color='white')
 
-    plt.gca().set_facecolor('black')  # Background color of the plot
-    plt.gca().tick_params(axis='both', colors='orange')  # Color of the ticks
-    plt.grid(color='orange', linestyle='--', linewidth=0.5)  # Grid color and style
+            fig.patch.set_facecolor('black')
 
-    plt.gcf().patch.set_facecolor('black')  # Background color of the figure
-    plt.show(block=False)
+            log_message("Plot created. Attempting to display...")
+
+            # Try different methods to show the plot
+            try:
+                plt.show(block=False)
+                log_message("Plot displayed")
+                input("Press Enter to close the plot and exit the script.")
+            except Exception as e:
+                log_message(f"Error with plt.show(): {e}")
+                try:
+                    plt.savefig(f"{ticker}_plot.png")
+                    log_message(f"Plot saved as {ticker}_plot.png")
+                except Exception as e:
+                    log_message(f"Error saving plot: {e}")
+
+            #log_message("Script execution completed.")
+
+        except Exception as e:
+            log_message(f"An unexpected error occurred: {e}")
+            log_message("Full traceback:")
+            log_message(traceback.format_exc())
+
+    if __name__ == "__main__":
+        plot_stock_price()
 
 
 
@@ -1221,7 +1224,7 @@ def main():
         choice = input("Choose an option: ").strip()
         
         if choice == 'ch':
-            plot_stock_price()
+            plot()
         elif choice == 'news':
             news()
         elif choice == 'cc':
