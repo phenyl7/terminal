@@ -721,6 +721,54 @@ def sim():
     plt.tight_layout()
     plt.show(block=False)
     
+def candles():
+    import yfinance as yf
+    import matplotlib.pyplot as plt
+    import mplfinance as mpf
+    from datetime import datetime
+    import pandas as pd
+
+    def plot_candlestick(ticker, time_frame):
+        end_date = datetime.today().strftime('%Y-%m-%d')
+        start_date = (pd.Timestamp.today() - pd.DateOffset(years=time_frame)).strftime('%Y-%m-%d')
+
+        stock_data = yf.download(ticker, start=start_date, end=end_date)
+
+        if stock_data.empty:
+            print(f"No data found for {ticker}. Please check the ticker symbol.")
+            return
+
+        market_colors = mpf.make_marketcolors(up='#00FF00', down='#FF0000',
+                                            wick={'up': '#00FF00', 'down': '#FF0000'},
+                                            edge={'up': '#00FF00', 'down': '#FF0000'},
+                                            volume='#000080')
+
+        style = mpf.make_mpf_style(base_mpf_style='nightclouds', marketcolors=market_colors,
+                                rc={'axes.facecolor': 'black', 'figure.facecolor': 'black',
+                                    'axes.edgecolor': 'white', 'text.color': 'white',
+                                    'grid.color': 'white', 'grid.linestyle': '--',
+                                    'font.size': 5, 'axes.titlesize': 5, 'axes.labelsize': 5})
+
+        fig, axes = mpf.plot(stock_data, type='candle', style=style,
+                            title=f'{ticker.upper()} ({time_frame} Y)',
+                            ylabel='Price (USD)', volume=True, figsize=(15, 8),
+                            tight_layout=True, returnfig=True,
+                            figratio=(16,9),  # Widescreen aspect ratio
+                            panel_ratios=(6,2),  # Adjust ratio between price and volume panels
+                            )
+
+        # Further adjust the layout to minimize margins
+        plt.subplots_adjust(left=0.01, right=0.99, top=0.95, bottom=0.01)
+
+        # Adjust the spacing between subplots
+        plt.tight_layout(pad=0.5)
+
+        plt.show(block=False)
+
+    if __name__ == "__main__":
+        ticker = input("Enter the stock ticker symbol (e.g., AAPL): ").upper()
+        time_frame = float(input("Enter the time frame in years (e.g., 1 for 1 year): "))
+        plot_candlestick(ticker, time_frame)
 
 
 def cc():
@@ -1167,7 +1215,7 @@ def main():
         print("[rs]   [port] [10k]")
         print("[10q]  [op]   [sim] ")
         print("[ovs]  [vic]  [gain]")
-        print("[val]  [dcf]  [q]")
+        print("[val]  [dcf]  [candle]")
      
         
         choice = input("Choose an option: ").strip()
@@ -1260,6 +1308,8 @@ def main():
             val()
         elif choice == 'dcf':
             dcf()
+        elif choice == 'candle':
+            candles()
         elif choice == 'q':
             break
         else:
