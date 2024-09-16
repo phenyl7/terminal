@@ -824,13 +824,7 @@ def cc():
     # Tickers for Commodities and Cryptocurrencies
     commodity_tickers = {
         "Gold": "GC=F",
-        "Silver": "SI=F",
-        "Copper": "HG=F",
-        "WTI Crude Oil": "CL=F",
-        "Natural Gas": "NG=F",
-        "Corn": "ZC=F",
-        "Wheat": "ZW=F",
-        "Lumber": "LBR=F"
+       
     }
 
     # Tickers for Cryptocurrencies and Indices
@@ -1177,8 +1171,11 @@ def val():
 def dcf():
     import webbrowser
     import sys
+    import numpy as np
+    import re
+    import matplotlib.pyplot as plt
+    from scipy.optimize import brentq
 
-    # Helper function to parse user input with M (Million) or B (Billion) suffix
     def parse_number_input(input_str):
         try:
             input_str = input_str.upper()
@@ -1192,7 +1189,6 @@ def dcf():
             print("Invalid number format. Please enter a valid number.")
             sys.exit()
 
-    # Function to compute intrinsic value given a growth rate
     def compute_intrinsic_value(ttm_fcf, fcf_growth_rate, wacc, terminal_growth_rate, projection_years, net_debt, shares_outstanding):
         projected_fcfs = []
         discounted_fcfs = []
@@ -1202,46 +1198,150 @@ def dcf():
             discounted_fcf = fcf / (1 + wacc) ** (i + 1)
             discounted_fcfs.append(discounted_fcf)
 
-        # Terminal Value and discounting
         terminal_fcf = projected_fcfs[-1] * (1 + terminal_growth_rate)
         if wacc <= terminal_growth_rate:
             print("WACC must be greater than the terminal growth rate.")
-            sys.exit()
+            return None
         terminal_value = terminal_fcf / (wacc - terminal_growth_rate)
         discounted_terminal_value = terminal_value / (1 + wacc) ** projection_years
 
-        # Enterprise Value and Equity Value
         enterprise_value = sum(discounted_fcfs) + discounted_terminal_value
         equity_value = enterprise_value - net_debt
 
-        # Intrinsic Value per Share
         intrinsic_value_per_share = equity_value / shares_outstanding
         return intrinsic_value_per_share
 
-    # Prompt for ticker symbol and open financial links
-    ticker = input("Enter a stock ticker: ").strip()
-    roic_link = f"https://www.roic.ai/quote/{ticker}/financials"
-    stockanalysis_link = f"https://stockanalysis.com/stocks/{ticker}/financials/"
-    webbrowser.open(roic_link)
-    webbrowser.open(stockanalysis_link)
+    def calculate_average_growth_rates(growth_rates):
+        if len(growth_rates) < 2:
+            return None, None
+        
+        two_year_growth = np.mean(growth_rates[:2])
+        six_year_growth = np.mean(growth_rates[:6]) if len(growth_rates) >= 6 else None
+        
+        return two_year_growth, six_year_growth
 
-    # Gather required inputs
-    latest_price = parse_number_input(input("Enter the latest stock price: ").strip())
-    ttm_free_cash_flow = parse_number_input(input("Enter the TTM Free Cash Flow (e.g., 300M or 0.3B): ").strip())
-    shares_outstanding = parse_number_input(input("Enter the number of shares outstanding (e.g., 1000M or 1B): ").strip())
-    net_debt = parse_number_input(input("Enter the Net Debt (e.g., 100M or 0.1B): ").strip())
-    wacc = float(input("Enter the Discount Rate (WACC) (e.g., 8 for 8%): ").strip()) / 100
-    terminal_growth_rate = float(input("Enter the Terminal Growth Rate (e.g., 3 for 3%): ").strip()) / 100
-    projection_years = int(input("Enter the number of projection years (e.g., 10): ").strip())
+    def plot_intrinsic_value(growth_rates, intrinsic_values, ticker, latest_price):
+        plt.style.use('dark_background')
+        fig, ax = plt.subplots(figsize=(12, 7))
+        
+        # Plot settings
+        ax.plot(growth_rates, intrinsic_values, color='orange', linewidth=2, label='Intrinsic Value')
+        ax.axhline(y=latest_price, color='red', linestyle='--', linewidth=2, label='Current Price')
+        
+        # Customize colors
+        ax.set_facecolor('black')
+        fig.patch.set_facecolor('black')
+        
+        # Customize grid
+        ax.grid(True, color='orange', linestyle=':', alpha=0.3)
+        
+        # Customize axes
+        ax.spines['bottom'].set_color('orange')
+        ax.spines['top'].set_color('orange')
+        ax.spines['left'].set_color('orange')
+        ax.spines['right'].set_color('orange')
+        ax.tick_params(axis='x', colors='orange')
+        ax.tick_params(axis='y', colors='orange')
+        
+        # Labels and title
+        ax.set_xlabel('Growth Rate (%)', color='orange', fontsize=12)
+        ax.set_ylabel('Intrinsic Value per Share ($)', color='orange', fontsize=12)
+        ax.set_title(f'Intrinsic Value vs Growth Rate for {ticker.upper()}', color='orange', fontsize=14, fontweight='bold')
+        
+        # Legend
+        ax.legend(facecolor='black', edgecolor='orange', labelcolor='orange')
+        
+        plt.tight_layout()
+        plt.show()
 
-    # Single FCF growth rate for all years
-    fcf_growth_rate = float(input("Enter the FCF growth rate (e.g., 5 for 5%): ").strip()) / 100
+    def calculate_required_growth_rate(ttm_fcf, wacc, terminal_growth_rate, projection_years, net_debt, shares_outstanding, current_price):
+        def intrinsic_value_difference(growth_rate):
+            intrinsic_value = compute_intrinsic_value(ttm_fcf, growth_rate, wacc, terminal_growth_rate, projection_years, net_debt, shares_outstanding)
+            return intrinsic_value - current_price
 
-    # Calculate projected Free Cash Flows and their present value
-    intrinsic_value_per_share = compute_intrinsic_value(ttm_free_cash_flow, fcf_growth_rate, wacc, terminal_growth_rate, projection_years, net_debt, shares_outstanding)
+        try:
+            required_growth_rate = brentq(intrinsic_value_difference, -0.99, 1.0)
+            return required_growth_rate
+        except ValueError:
+            return None
 
-    # Output the intrinsic value per share
-    print(f"\nIntrinsic Value per Share: ${intrinsic_value_per_share:,.2f}")
+    def calculate_intrinsic_value():
+        # Prompt for ticker symbol and open financial links
+        ticker = input("Enter a stock ticker: ").strip()
+        roic_link = f"https://www.roic.ai/quote/{ticker}/financials"
+        stockanalysis_link = f"https://stockanalysis.com/stocks/{ticker}/financials/"
+        webbrowser.open(roic_link)
+        webbrowser.open(stockanalysis_link)
+
+        # Get historical growth rates
+        print("Enter historical FCF growth rates (most recent first, separated by tabs or commas):")
+        historical_rates_input = input().strip()
+        # Split on tabs and commas
+        historical_rates = re.split(r'[,\t]+', historical_rates_input)
+        historical_rates = [float(rate.strip().rstrip('%')) / 100 for rate in historical_rates]
+
+        # Calculate average growth rates
+        two_year_growth, six_year_growth = calculate_average_growth_rates(historical_rates)
+        
+        if two_year_growth is not None:
+            print(f"2-year average FCF growth rate: {two_year_growth*100:.2f}%")
+        if six_year_growth is not None:
+            print(f"6-year average FCF growth rate: {six_year_growth*100:.2f}%")
+
+        # Gather required inputs
+        latest_price = parse_number_input(input("Enter the latest stock price: ").strip())
+        ttm_free_cash_flow = parse_number_input(input("Enter the TTM Free Cash Flow (e.g., 300M or 0.3B): ").strip())
+        shares_outstanding = parse_number_input(input("Enter the number of shares outstanding (e.g., 1000M or 1B): ").strip())
+        net_debt = parse_number_input(input("Enter the Net Debt (e.g., 100M or 0.1B): ").strip())
+        wacc = float(input("Enter the Discount Rate (WACC) (e.g., 8 for 8%): ").strip()) / 100
+        terminal_growth_rate = float(input("Enter the Terminal Growth Rate (e.g., 3 for 3%): ").strip()) / 100
+        projection_years = int(input("Enter the number of projection years (e.g., 10): ").strip())
+
+        # Calculate required growth rate
+        required_growth_rate = calculate_required_growth_rate(ttm_free_cash_flow, wacc, terminal_growth_rate, projection_years, net_debt, shares_outstanding, latest_price)
+        if required_growth_rate is not None:
+            print(f"\nRequired FCF growth rate for intrinsic value to equal current price: {required_growth_rate*100:.2f}%")
+        else:
+            print("\nUnable to calculate the required growth rate. The current price might be outside the calculable range.")
+
+        # Get growth rate range for plotting
+        growth_range = input("Enter the growth rate range for plotting (e.g., -5,50 for -5% to 50%): ").strip()
+        min_growth, max_growth = map(float, growth_range.split(','))
+        growth_rates_plot = np.linspace(min_growth/100, max_growth/100, 100)
+
+        # Get multiple growth rates for specific calculations
+        growth_rates = []
+        print("Enter FCF growth rates to test (e.g., 5 for 5%). Enter multiple rates separated by commas, or press Enter to finish:")
+        rates_input = input().strip()
+        if rates_input:
+            growth_rates = [float(rate.strip()) / 100 for rate in rates_input.split(',')]
+
+        # Add historical average growth rates if available
+        if two_year_growth is not None:
+            growth_rates.append(two_year_growth)
+        if six_year_growth is not None:
+            growth_rates.append(six_year_growth)
+
+        # Calculate and display results
+        print("\nResults:")
+        print("Growth Rate | Intrinsic Value per Share")
+        print("-" * 40)
+
+        for rate in growth_rates:
+            intrinsic_value = compute_intrinsic_value(ttm_free_cash_flow, rate, wacc, terminal_growth_rate, projection_years, net_debt, shares_outstanding)
+            if intrinsic_value is not None:
+                print(f"{rate*100:9.2f}% | ${intrinsic_value:,.2f}")
+
+        print(f"\nCurrent Stock Price: ${latest_price:,.2f}")
+
+        # Calculate intrinsic values for plotting
+        intrinsic_values_plot = [compute_intrinsic_value(ttm_free_cash_flow, rate, wacc, terminal_growth_rate, projection_years, net_debt, shares_outstanding) for rate in growth_rates_plot]
+
+        # Plot the results
+        plot_intrinsic_value(growth_rates_plot * 100, intrinsic_values_plot, ticker, latest_price)
+
+    if __name__ == "__main__":
+        calculate_intrinsic_value()
 
 
 
