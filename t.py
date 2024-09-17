@@ -1560,6 +1560,70 @@ def fund():
     if __name__ == "__main__":
         main()
 
+def portchart():
+    import json
+    import yfinance as yf
+    import matplotlib.pyplot as plt
+    from matplotlib.dates import date2num
+    import matplotlib.dates as mdates
+
+    # Load portfolio data
+    with open('portfolio.json', 'r') as file:
+        portfolio_data = json.load(file)
+
+    # Extract tickers, skipping '1'
+    tickers = [ticker for ticker in portfolio_data.keys() if ticker != '1']
+
+    # Define chart parameters
+    num_stocks = len(tickers)
+    grid_size = int(num_stocks**0.5) + 1
+    fig_width = 10  # Adjust width to fit more charts
+    fig_height = 10  # Adjust height to fit more charts
+    fig, axes = plt.subplots(grid_size, grid_size, figsize=(fig_width, fig_height), facecolor='black')
+    axes = axes.flatten()  # Flatten to make indexing easier
+
+    # Custom style settings
+    plt.style.use('dark_background')
+    plt.rcParams.update({
+        'axes.facecolor': 'black',
+        'axes.edgecolor': 'black',
+        'axes.labelcolor': 'orange',
+        'xtick.color': 'orange',
+        'ytick.color': 'orange',
+        'grid.color': 'orange',
+        'figure.facecolor': 'black',
+        'figure.edgecolor': 'black',
+        'axes.grid': True,
+        'axes.labelsize': 8,
+        'xtick.labelsize': 6,
+        'ytick.labelsize': 6
+    })
+
+    for i, ticker in enumerate(tickers):
+        prices = yf.Ticker(ticker).history(period='ytd')
+
+        # Plot line chart
+        ax = axes[i]
+        ax.plot(prices.index, prices['Close'], color='orange', label=ticker)
+        ax.fill_between(prices.index, prices['Close'], color='darkblue', alpha=0.5)
+        ax.set_title(ticker, color='orange', fontsize=8)
+        ax.set_xlabel('Date', color='orange', fontsize=8)
+        ax.set_ylabel('Close Price', color='orange', fontsize=8)
+        ax.legend(fontsize=6)
+        ax.grid(True, linestyle='--')
+        ax.xaxis.set_major_locator(mdates.YearLocator())
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+        plt.setp(ax.get_xticklabels(), rotation=45, color='orange')
+        plt.setp(ax.get_yticklabels(), color='orange')
+        ax.patch.set_facecolor('black')  # Set the axes background color
+
+    # Hide unused subplots
+    for j in range(num_stocks, len(axes)):
+        axes[j].axis('off')
+
+    plt.tight_layout(pad=2.0)  # Adjust padding to fit the plots
+    plt.show(block=False)
+
 
 def main():
     while True:
@@ -1572,7 +1636,7 @@ def main():
         print("[op]   [sim]  [ovs]")
         print("[vic]  [gain] [val]")
         print("[dcf]  [sc]   [cl]")
-        print("[fund] [q]")
+        print("[fund] [pch]  [q]")
         
         choice = input("Choose an option: ").strip()
         
@@ -1658,6 +1722,8 @@ def main():
             cl()
         elif choice == 'fund':
             fund()
+        elif choice == 'pch':
+            portchart()
         elif choice == 'q':
             break
         else:
