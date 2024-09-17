@@ -448,23 +448,17 @@ def news():
     import feedparser
     import textwrap
     import os
-    import sys
-    import time
+    from datetime import datetime
 
     # List of RSS feed URLs
     RSS_FEEDS = [
-        'https://feeds.content.dowjones.io/public/rss/mw_topstories',
-        'https://rss.nytimes.com/services/xml/rss/nyt/US.xml',
-        'https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml'
-        'https://rss.nytimes.com/services/xml/rss/nyt/World.xml'
-        
+        'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml', 
+        'https://rss.nytimes.com/services/xml/rss/nyt/World.xml',
+        'https://rss.nytimes.com/services/xml/rss/nyt/US.xml'
     ]
 
     # Define maximum width for text wrapping
     MAX_WIDTH = 80
-
-    # Define refresh interval in seconds (e.g., 5 minutes)
-    REFRESH_INTERVAL = 300
 
     # ANSI escape codes for colors
     RED = '\033[91m'
@@ -480,41 +474,55 @@ def news():
         """Clear the terminal screen."""
         os.system('cls' if os.name == 'nt' else 'clear')
 
+    def format_timestamp(entry):
+        """Format the published timestamp of an RSS entry."""
+        # Extract the timestamp and format it into a readable form
+        if 'published_parsed' in entry:
+            pub_date = datetime(*entry.published_parsed[:6])
+            return pub_date.strftime('%Y-%m-%d %H:%M:%S')
+        else:
+            return "No Timestamp Available"
+
     def fetch_rss_feed(url):
         feed = feedparser.parse(url)
+        
+        # Check if the 'title' attribute exists and handle the case where it's missing
+        feed_title = feed.feed.get('title', 'No Title Available')
+        
         # Print feed title in red
-        print(f"\n{'='*MAX_WIDTH}\n{RED}Feed Title: {feed.feed.title}{RESET}\n{'='*MAX_WIDTH}")
+        print(f"\n{'='*MAX_WIDTH}\n{RED}Feed Title: {feed_title}{RESET}\n{'='*MAX_WIDTH}")
         
         for entry in feed.entries:
             # Extract relevant information
-            title = entry.title
-            summary = entry.summary if 'summary' in entry else None
+            title = entry.get('title', 'No Title')
+            summary = entry.get('summary', None)  # Allow summary to be None
+            timestamp = format_timestamp(entry)
             
-            # Print headline in blue and summary if available
+            # Print headline in blue
+            print_wrapped(f"{BLUE}{title}{RESET}")
+            
+            # Print the timestamp
+            print_wrapped(f"   Published on: {timestamp}")
+            
+            # Add two lines of space
+            print()
+            
+            # Print summary if available
             if summary:
-                # Print headline in blue
-                print_wrapped(f"{BLUE}{title}{RESET}")
-                
-                # Add two lines of space
-                print()
-                
-                # Print summary
                 print_wrapped(f"   Summary: {summary}")
-                
-                # Add a line of space between each headline
-                print()
+            
+            # Add a line of space between each headline
+            print()
 
     def main():
-            
         print("\nFetching the latest RSS feed items...\n")
-            
+        
         for url in RSS_FEEDS:
             print(f"Fetching from {url}...\n")
             fetch_rss_feed(url)
-            
+
     if __name__ == "__main__":
         main()
-
 
 
 def options():
@@ -1388,6 +1396,169 @@ def fs():
         print_df_with_colored_first_column(financial_data)
         print_separator()
 
+def cl():
+    import requests
+    from bs4 import BeautifulSoup
+    import pandas as pd
+    import webbrowser
+    from tabulate import tabulate
+
+    # ANSI escape codes for colors
+    GREEN = '\033[92m'
+    RED = '\033[91m'
+    RESET = '\033[0m'
+
+    # Function to format cells with color based on the number
+    def color_numbers(value):
+        try:
+            # Remove non-numeric characters (e.g., $ and ,) and convert to float
+            number = float(value.replace('$', '').replace(',', ''))
+            # Check if the number is positive or negative
+            if number > 0:
+                return GREEN + value + RESET
+            elif number < 0:
+                return RED + value + RESET
+        except ValueError:
+            # Return the value as is if it's not a number
+            return value
+        return value
+
+    # Step 1: Send an HTTP request to the website
+    url = "http://openinsider.com/"
+    response = requests.get(url)
+
+    # Step 2: Parse the HTML content with BeautifulSoup
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    # Step 3: Find all tables on the page
+    tables = soup.find_all('table', class_='tinytable')  # Adjust class or identifier if necessary
+
+    # Force pandas to show all rows and columns
+    pd.set_option('display.max_rows', None)
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.width', None)
+    pd.set_option('display.colheader_justify', 'left')
+
+    # Step 4: Iterate through all the tables
+    for idx, table in enumerate(tables):
+        # Skip Table 4 (index is 3 since index starts from 0)
+        if idx == 3:
+            continue
+
+        print(f"Table {idx + 1}:")
+
+        # Extract the table headers
+        headers = [th.text.strip() for th in table.find_all('th')]
+
+        # Extract the rows and corresponding data
+        rows = []
+        for tr in table.find_all('tr')[1:]:  # Skip the header row
+            cells = [td.text.strip() for td in tr.find_all('td')]
+            if cells:  # Only append non-empty rows
+                rows.append(cells)
+
+        # Step 5: Convert the data into a pandas DataFrame
+        df = pd.DataFrame(rows, columns=headers)
+
+        # Step 6: Drop the specified columns if they exist in the DataFrame
+        columns_to_drop = ['1d', '1w', '1m', '6m']
+        df = df.drop(columns=[col for col in columns_to_drop if col in df.columns])
+
+        # Step 7: Apply color formatting to positive and negative numbers
+        df = df.apply(lambda col: col.map(color_numbers))
+
+        # Step 8: Output the entire DataFrame with reduced cell padding
+        print(tabulate(df, headers='keys', tablefmt='plain', showindex=False))
+
+        print("\n" + "="*80 + "\n")  # Separator between tables
+
+    # Step 9: Prompt to open the website link in the browser
+    open_link = input("Would you like to open the website in your browser? (y/n): ").strip().lower()
+    if open_link == 'y':
+        webbrowser.open(url)
+
+def fund():
+    import requests
+    from bs4 import BeautifulSoup
+    import webbrowser
+
+    def scrape_holdings(url):
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code != 200:
+            print(f"Failed to retrieve the page. Status code: {response.status_code}")
+            return
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Find all tables on the page
+        tables = soup.find_all('table')
+        print(f"Found {len(tables)} table(s) on the page.")
+        
+        if tables:
+            table = tables[0]
+            
+            # Extract table rows
+            rows = []
+            for row in table.find_all('tr')[1:]:  # Skip header row
+                cols = [col.text.strip() for col in row.find_all('td')]
+                if cols:  # Only add rows that contain columns
+                    rows.append(cols)
+            
+            # Check if rows are empty
+            if not rows:
+                print("No data rows found in the table.")
+                return
+            
+            # Determine maximum column widths
+            num_cols = max(len(row) for row in rows)
+            max_col_widths = [0] * num_cols
+            
+            for row in rows:
+                for i, col in enumerate(row):
+                    max_col_widths[i] = max(max_col_widths[i], len(col))
+            
+            # Print the results with aligned columns
+            print("\nTable Data:")
+            for row in rows:
+                # Ensure all rows have the same number of columns
+                row = row + [''] * (num_cols - len(row))
+                print(" | ".join(f"{col:<{max_col_widths[i]}}" for i, col in enumerate(row)))
+        else:
+            print("No tables found on the page.")
+        
+        # Ask user if they want to open the URL
+        open_link = input(f"Do you want to open the URL in your browser? (y/n): ").strip().lower()
+        if open_link == 'y':
+            webbrowser.open(url)
+        else:
+            print("The URL was not opened.")
+
+    def main():
+        fund = input("Enter the fund name: ").strip().lower()
+        if fund == "scion":
+            url = "https://www.dataroma.com/m/holdings.php?m=SAM"
+        elif fund == "icahn":
+            url = "https://www.dataroma.com/m/holdings.php?m=ic"
+        elif fund == "ackman":
+            url = "https://www.dataroma.com/m/holdings.php?m=psc"
+        elif fund == "brk":
+            url = "https://www.dataroma.com/m/holdings.php?m=BRK"
+        elif fund == "big bets":
+            url = "https://www.dataroma.com/m/g/portfolio.php?o=b"
+        elif fund == "low":
+            url = "https://www.dataroma.com/m/g/portfolio.php?pct=5&o=ru"
+        else:
+            print("No action defined for this fund.")
+            return
+        
+        scrape_holdings(url)
+
+    if __name__ == "__main__":
+        main()
 
 
 def main():
@@ -1400,8 +1571,8 @@ def main():
         print("[port] [10k]  [10q]  ")
         print("[op]   [sim]  [ovs]")
         print("[vic]  [gain] [val]")
-        print("[dcf]  [sc]   [q]   ")
-     
+        print("[dcf]  [sc]   [cl]")
+        print("[fund] [q]")
         
         choice = input("Choose an option: ").strip()
         
@@ -1483,6 +1654,10 @@ def main():
             dcf()
         elif choice == 'sc':
             sc()
+        elif choice == 'cl':
+            cl()
+        elif choice == 'fund':
+            fund()
         elif choice == 'q':
             break
         else:
