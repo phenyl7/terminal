@@ -41,135 +41,101 @@ def get_stock_data(ticker):
 def plot():
     import matplotlib.pyplot as plt
     import yfinance as yf
-    import numpy as np
     from datetime import datetime, timedelta
-    import sys
-    import traceback
+    import re
 
-    def log_message(message):
-        print(message)
-        sys.stdout.flush()  # Ensure the message is immediately printed
-
-    def parse_time_frame(time_frame_input):
-        try:
-            if time_frame_input.endswith('m'):
-                months = int(time_frame_input[:-1])
-                return timedelta(days=months * 30)  # Approximate days in a month
-            elif time_frame_input.endswith('y'):
-                years = int(time_frame_input[:-1])
-                return timedelta(days=years * 365)
-            else:
-                raise ValueError("Invalid time frame format. Use 'Xm' for months or 'Xy' for years.")
-        except ValueError as e:
-            log_message(f"Error parsing time frame: {e}")
+    def parse_duration(duration):
+        """Convert duration string to number of days."""
+        match = re.match(r"(\d+)([dmy])", duration.strip().lower())
+        if not match:
+            print("Invalid duration format. Use 'd' for days, 'm' for months, 'y' for years.")
             return None
-
-    def calculate_rsi(data, periods=14):
-        try:
-            delta = data.diff()
-            gain = (delta.where(delta > 0, 0)).rolling(window=periods).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(window=periods).mean()
-            rs = gain / loss
-            return 100 - (100 / (1 + rs))
-        except Exception as e:
-            log_message(f"Error calculating RSI: {e}")
+        
+        number, unit = match.groups()
+        number = int(number)
+        
+        if unit == 'd':
+            return number
+        elif unit == 'm':
+            return number * 30  # Approximate number of days in a month
+        elif unit == 'y':
+            return number * 365.25  # Approximate number of days in a year
+        else:
+            print("Unsupported unit. Use 'd' for days, 'm' for months, 'y' for years.")
             return None
 
     def plot_stock_price():
-        try:
-            # Prompt for ticker and time frame
-            ticker = input("Enter the stock ticker: ")
-            time_frame_input = input("Enter the time frame (e.g., 6m for 6 months, 1y for 1 year): ")
+        # Prompt for ticker and duration
+        ticker = input("Enter the stock ticker: ")
+        duration_input = input("Enter the duration (e.g., 1d for 1 day, 7d for 7 days, 1m for 1 month, 2y for 2 years): ")
 
-            log_message(f"Fetching data for {ticker} over the last {time_frame_input}...")
+        # Convert duration input to number of days
+        days = parse_duration(duration_input)
+        if days is None:
+            return
 
-            # Parse the time frame
-            time_delta = parse_time_frame(time_frame_input)
-            if time_delta is None:
-                return
+        # Download stock data
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        stock_data = yf.download(ticker, start=start_date, end=end_date)
 
-            # Download stock data
-            end_date = datetime.now()
-            start_date = end_date - time_delta
-            log_message(f"Downloading data from {start_date} to {end_date}")
-            stock_data = yf.download(ticker, start=start_date, end=end_date)
+        if stock_data.empty:
+            print(f"No data found for ticker: {ticker}")
+            return
 
-            if stock_data.empty:
-                log_message(f"No data found for ticker: {ticker}")
-                return
+        # Calculate latest price and percent change
+        latest_price = stock_data['Adj Close'].iloc[-1]
+        initial_price = stock_data['Adj Close'].iloc[0]
+        percent_change = ((latest_price - initial_price) / initial_price) * 100
 
-            log_message(f"Data fetched successfully. Processing {len(stock_data)} data points...")
+        # Create subplots with specific height ratios
+        fig, ax1 = plt.subplots(figsize=(12, 8), nrows=2, ncols=1, sharex=True, gridspec_kw={'height_ratios': [4, 1]})
+        
+        # Set figure background color
+        fig.patch.set_facecolor('black')
 
-            # Calculate RSI
-            stock_data['RSI'] = calculate_rsi(stock_data['Adj Close'])
+        # Plot stock price on the primary y-axis
+        ax1[0].plot(stock_data.index, stock_data['Adj Close'], label=f'{ticker} Price', color='white')
+        ax1[0].fill_between(stock_data.index, stock_data['Adj Close'], color='darkblue', alpha=0.4)
 
-            # Calculate latest price and percent change
-            latest_price = stock_data['Adj Close'].iloc[-1]
-            initial_price = stock_data['Adj Close'].iloc[0]
-            percent_change = ((latest_price - initial_price) / initial_price) * 100
+        # Add a text box with an orange background for latest price
+        textstr = f'Latest Price: ${latest_price:.2f}\nChange: {percent_change:.2f}%'
+        props = dict(boxstyle='round', facecolor='orange', alpha=1)
+        ax1[0].text(0.05, 0.95, textstr, transform=ax1[0].transAxes, fontsize=9,
+                    verticalalignment='top', bbox=props, color='black')
 
-            log_message(f"Creating plot for {ticker}...")
+        # Adjust y-axis limits
+        y_min = stock_data['Adj Close'].min()
+        y_max = stock_data['Adj Close'].max()
 
-            # Create subplots
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), gridspec_kw={'height_ratios': [2, 1]}, sharex=True)
-            fig.subplots_adjust(hspace=0.1)
+        # Dynamic adjustment for short timeframes
+        if days <= 30:  # For timeframes up to 30 days
+            ax1[0].set_ylim(y_min * 0.98, y_max * 1.02)  # Slightly expanded range for better visibility
+        elif days <= 365:  # For timeframes up to 1 year
+            ax1[0].set_ylim(y_min * 0.95, y_max * 1.05)
+        else:  # For timeframes longer than 1 year
+            ax1[0].set_ylim(y_min * 0.90, y_max * 1.10)
 
-            # Plot stock price on the first axis
-            ax1.plot(stock_data.index, stock_data['Adj Close'], color='white')
-            ax1.fill_between(stock_data.index, stock_data['Adj Close'], color='darkblue', alpha=0.4)
-            ax1.set_ylim(stock_data['Adj Close'].min() * 0.95, stock_data['Adj Close'].max() * 1.05)
-            ax1.set_title(f'{ticker} {time_frame_input}', color='white')
-            ax1.set_ylabel('Price', color='white')
-            ax1.legend()
-            ax1.set_facecolor('black')
-            ax1.tick_params(axis='both', colors='orange')
-            ax1.grid(color='orange', linestyle='--', linewidth=0.5)
+        ax1[0].set_title(f'{ticker} {duration_input}', color='white')
+        ax1[0].set_ylabel('Price', color='white')
+        ax1[0].legend()
+        ax1[0].set_facecolor('black')  # Background color of the plot
+        ax1[0].tick_params(axis='both', colors='orange')  # Color of the ticks
+        ax1[0].grid(color='orange', linestyle='--', linewidth=0.5)  # Grid color and style
 
-            # Add text annotation for latest price and percent change
-            ax1.text(0.02, 0.95, f'Latest Price: ${latest_price:.2f}\nChange: {percent_change:.2f}%', 
-                    transform=ax1.transAxes, color='white', verticalalignment='top',
-                    bbox=dict(facecolor='black', edgecolor='white', alpha=0.7))
+        # Plot volume bars on the secondary y-axis
+        ax1[1].bar(stock_data.index, stock_data['Volume'], color='#536878', alpha=1)
+        ax1[1].set_xlabel('Date', color='white')
+        ax1[1].set_ylabel('Volume', color='white')
+        ax1[1].set_facecolor('black')  # Background color of the plot
+        ax1[1].tick_params(axis='both', colors='orange')  # Color of the ticks
+        ax1[1].grid(color='orange', linestyle='--', linewidth=0.5)  # Grid color and style
 
-            # Plot RSI on the second axis
-            ax2.plot(stock_data.index, stock_data['RSI'], color='white', label='RSI')
-            ax2.axhline(y=70, color='grey', linestyle='--', alpha=0.5)
-            ax2.axhline(y=30, color='grey', linestyle='--', alpha=0.5)
-            ax2.fill_between(stock_data.index, stock_data['RSI'], 70, where=(stock_data['RSI'] >= 70), color='grey', alpha=0.8)
-            ax2.fill_between(stock_data.index, stock_data['RSI'], 30, where=(stock_data['RSI'] <= 30), color='grey', alpha=0.8)
-            ax2.set_ylabel('RSI', color='white')
-            ax2.set_ylim(0, 100)
-            ax2.tick_params(axis='y', colors='orange')
-            ax2.set_facecolor('black')
-            ax2.grid(color='orange', linestyle='--', linewidth=0.5)
-            ax2.set_xlabel('Date', color='white')
-
-            fig.patch.set_facecolor('black')
-
-            log_message("Plot created. Attempting to display...")
-
-            # Try different methods to show the plot
-            try:
-                plt.show(block=False)
-                log_message("Plot displayed")
-                input("Press Enter to close the plot and exit the script.")
-            except Exception as e:
-                log_message(f"Error with plt.show(): {e}")
-                try:
-                    plt.savefig(f"{ticker}_plot.png")
-                    log_message(f"Plot saved as {ticker}_plot.png")
-                except Exception as e:
-                    log_message(f"Error saving plot: {e}")
-
-            #log_message("Script execution completed.")
-
-        except Exception as e:
-            log_message(f"An unexpected error occurred: {e}")
-            log_message("Full traceback:")
-            log_message(traceback.format_exc())
+        plt.tight_layout()  # Adjust layout to fit both plots
+        plt.show(block=False)
 
     if __name__ == "__main__":
         plot_stock_price()
-
 
 
 
@@ -723,95 +689,49 @@ def sim():
     # Show plot
     plt.tight_layout()
     plt.show(block=False)
+
+
     
-def candles():
+def sc():
     import yfinance as yf
-    import matplotlib.pyplot as plt
-    import mplfinance as mpf
-    from datetime import datetime
-    import pandas as pd
-    import mplcursors
+    import datetime
+    from mplchart.chart import Chart
+    from mplchart.primitives import Candlesticks, Volume
+    from mplchart.indicators import ROC, SMA, EMA, RSI, MACD
 
-    def plot_candlestick(ticker, time_frame):
-        # Current date
-        end_date = datetime.today().strftime('%Y-%m-%d')
+    # User input for ticker and number of years
+    ticker = input("Enter stock ticker: ")
+    years = float(input("Enter number of years of data: "))
 
-        # Handle different time frame inputs
-        if time_frame.endswith('d'):
-            days = int(time_frame[:-1])
-            start_date = (pd.Timestamp.today() - pd.DateOffset(days=days)).strftime('%Y-%m-%d')
-        elif time_frame.endswith('m'):
-            months = int(time_frame[:-1])
-            start_date = (pd.Timestamp.today() - pd.DateOffset(months=months)).strftime('%Y-%m-%d')
-        elif time_frame.endswith('y'):
-            years = int(time_frame[:-1])
-            start_date = (pd.Timestamp.today() - pd.DateOffset(years=years)).strftime('%Y-%m-%d')
-        else:
-            print("Invalid time frame. Please enter in the format like '1d', '3m', or '2y'.")
-            return
+    # Calculate the start and end dates
+    end_date = datetime.datetime.now()
+    start_date = end_date - datetime.timedelta(days=int(years * 365.25))  # Using 365.25 to account for leap years
 
-        # Download stock data
-        stock_data = yf.download(ticker, start=start_date, end=end_date)
+    # Fetch historical data
+    prices = yf.Ticker(ticker).history(start=start_date, end=end_date)
 
-        if stock_data.empty:
-            print(f"No data found for {ticker}. Please check the ticker symbol.")
-            return
+    # Calculate percent change
+    start_price = prices['Close'].iloc[0]  # Price at the start date
+    end_price = prices['Close'].iloc[-1]   # Price at the end date
+    percent_change = ((end_price - start_price) / start_price) * 100
 
-        # Customize the market color and style
-        market_colors = mpf.make_marketcolors(up='#00FF00', down='#FF0000',
-                                            wick={'up': '#00FF00', 'down': '#FF0000'},
-                                            edge={'up': '#00FF00', 'down': '#FF0000'},
-                                            volume='#000080')
+    # Define the number of bars to display (max_bars) - can be adjusted as needed
+    max_bars = 250
 
-        style = mpf.make_mpf_style(base_mpf_style='nightclouds', marketcolors=market_colors,
-                                rc={'axes.facecolor': 'black', 'figure.facecolor': 'black',
-                                    'axes.edgecolor': 'white', 'text.color': 'white',
-                                    'grid.color': 'white', 'grid.linestyle': '--',
-                                    'font.size': 5, 'axes.titlesize': 5, 'axes.labelsize': 5})
+    # Define indicators
+    indicators = [
+        Candlesticks(),  
+        Volume(),
+        RSI(),
+        MACD()
+    ]
 
-        # Create the plot
-        fig, axes = mpf.plot(stock_data, type='candle', style=style,
-                            title=f'{ticker.upper()} ({time_frame})',
-                            ylabel='Price (USD)', volume=True, figsize=(15, 8),
-                            tight_layout=True, returnfig=True,
-                            figratio=(16, 9),  # Widescreen aspect ratio
-                            panel_ratios=(6, 2),  # Adjust ratio between price and volume panels
-                            )
+    # Create and plot the chart with percent change in the title
+    chart = Chart(title=f'{ticker} - {percent_change:.2f}% Change', max_bars=max_bars)
+    chart.plot(prices, indicators)
+    chart.show()
 
-        # Add cursor functionality with larger text and box
-        cursor = mplcursors.cursor(axes[0].collections[0], hover=True)
-        cursor.connect("add", lambda sel: sel.annotation.set(
-            text=cursor_annotation(sel),
-            bbox=dict(facecolor='#000080', edgecolor='#000080', alpha=1, boxstyle='round,pad=0.1'),
-            color='white',
-            fontsize=7  # Increase the font size
-        ))
-        
-        def cursor_annotation(sel):
-            x = int(sel.target[0])
-            if 0 <= x < len(stock_data):
-                date = stock_data.index[x]
-                row = stock_data.iloc[x]
-                return (f"Date: {date.strftime('%Y-%m-%d')}\n"
-                        f"Close: {row['Close']:.2f}\n"
-                        f"Volume: {row['Volume']:,}")
-            return None  # Return None for invalid data points
-
-        cursor.connect("add", lambda sel: sel.annotation.set_text(cursor_annotation(sel)))
-
-        # Adjust the layout to minimize margins
-        plt.subplots_adjust(left=0.01, right=0.99, top=0.95, bottom=0.01)
-
-        plt.show(block=False)
-
-    if __name__ == "__main__":
-        ticker = input("Enter the stock ticker symbol (e.g., AAPL): ").upper()
-        time_frame = input("Enter the time frame (e.g., 1d, 3m, 1y): ").lower()
-        plot_candlestick(ticker, time_frame)
-
-
-
-
+    
 def cc():
     import yfinance as yf
 
@@ -1440,7 +1360,7 @@ def main():
         print("[port] [10k]  [10q]  ")
         print("[op]   [sim]  [ovs]")
         print("[vic]  [gain] [val]")
-        print("[dcf]  [candle] [q]   ")
+        print("[dcf]  [sc]   [q]   ")
      
         
         choice = input("Choose an option: ").strip()
@@ -1521,8 +1441,8 @@ def main():
             val()
         elif choice == 'dcf':
             dcf()
-        elif choice == 'candle':
-            candles()
+        elif choice == 'sc':
+            sc()
         elif choice == 'q':
             break
         else:
