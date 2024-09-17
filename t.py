@@ -288,13 +288,14 @@ def port():
 def gm():
     import json
     import yfinance as yf
-    import webbrowser
     from datetime import datetime
+    import webbrowser
 
     # Define ANSI color codes
-    YELLOW = '\033[94m' #blue 
+    YELLOW = '\033[94m'  # Blue
     LIME_GREEN = '\033[92m'
     NEON_RED = '\033[91m'
+    WHITE = '\033[97m'
     RESET = '\033[0m'
 
     def get_greeting():
@@ -307,16 +308,6 @@ def gm():
             return "Good afternoon!"
         else:
             return "Good evening!"
-
-    def open_websites():
-        urls = [
-            "https://x.com",
-            "https://www.reddit.com/r/wallstreetbets/",
-            "https://news.google.com/home"
-        ]
-        
-        for url in urls:
-            webbrowser.open_new_tab(url)
 
     def load_portfolio(file_path):
         with open(file_path, 'r') as file:
@@ -389,31 +380,8 @@ def gm():
             print(f"1D %Δ: {colorize_percent(data['percent_change_today'])}" if data['percent_change_today'] != 'N/A' else "Percent Change Today: N/A")
             print(f"Value: ${data['value']:.2f}" if data['value'] != 'N/A' else "Value: N/A")
             print()
-        
+
         print(f"Total Portfolio Value: ${total_value:.2f}")
-
-    if __name__ == "__main__":
-        print(get_greeting())
-        
-        portfolio_file = 'portfolio.json'  # Path to your portfolio.json file
-        portfolio = load_portfolio(portfolio_file)
-        performance, total_value = calculate_performance(portfolio)
-        print_performance(performance, total_value)
-        
-        # Prompt for opening websites
-        response = input("Open x, wsb, and google news? (y/n): ").strip().lower()
-        if response == 'y':
-            open_websites()
-
-
-def news():
-    import yfinance as yf
-    import webbrowser
-
-    # ANSI escape codes for colors
-    YELLOW = '\033[94m'    # blue text
-    WHITE = '\033[97m'     # White text
-    RESET = '\033[0m'      # Reset to default color
 
     def fetch_news(ticker_symbol):
         ticker = yf.Ticker(ticker_symbol)
@@ -428,54 +396,126 @@ def news():
             
         return headlines
 
-    def display_headlines(ticker, headlines, start_number):
-        for idx, (title, _, publisher) in enumerate(headlines, start=start_number):
-            print(f"[{idx}] {ticker} - {YELLOW}Title: {title}{RESET}")
-            print(f"    {WHITE}Publisher: {publisher}{RESET}")
-            print()
+    def display_all_headlines(news_data):
+        counter = 1  # Unique number for each headline
+        headline_map = {}  # Store all headlines with numbers
+        for ticker, headlines in news_data.items():
+            print(f"\n{YELLOW}News for {ticker.upper()}:{RESET}")
+            for title, link, publisher in headlines:
+                print(f"[{counter}] {YELLOW}Title: {title}{RESET}")
+                print(f"    {WHITE}Publisher: {publisher}{RESET}")
+                headline_map[counter] = link
+                counter += 1
+        return headline_map
 
-    def search_links_on_google(links):
-        for link in links:
-            webbrowser.open_new_tab(link)
+    def open_link_in_browser(headline_map):
+        try:
+            choice = int(input("Enter the number of the article to open (or 0 to skip): "))
+            if choice in headline_map:
+                link = headline_map[choice]
+                print(f"Opening article...")
+                webbrowser.open(link)
+            elif choice == 0:
+                print("Skipping article opening...")
+            else:
+                print("Invalid choice.")
+        except ValueError:
+            print("Please enter a valid number.")
 
-    # Get ticker symbols from the user, separated by commas
-    ticker_symbols_input = input("Enter ticker symbols separated by commas (e.g., AAPL,MSFT,GOOGL) or press Enter to skip: ")
+    # Main function logic
+    print(get_greeting())
     
-    if ticker_symbols_input.strip():  # Check if input is not empty
-        ticker_symbols = [symbol.strip() for symbol in ticker_symbols_input.split(',')]
+    portfolio_file = 'portfolio.json'  # Path to your portfolio.json file
+    portfolio = load_portfolio(portfolio_file)
+    performance, total_value = calculate_performance(portfolio)
+    print_performance(performance, total_value)
+
+    # Fetch and display news for each ticker
+    news_data = {}
+    for ticker in portfolio.keys():
+        if ticker == "1":
+            continue
+        news_data[ticker] = fetch_news(ticker)
+
+    # Display all headlines with unique numbers and map them for opening
+    headline_map = display_all_headlines(news_data)
+
+    # Prompt to open a link in the browser
+    open_link_in_browser(headline_map)
+
+
+def news():
+    import feedparser
+    import textwrap
+    import os
+    import sys
+    import time
+
+    # List of RSS feed URLs
+    RSS_FEEDS = [
+        'https://feeds.content.dowjones.io/public/rss/mw_topstories',
+        'https://rss.nytimes.com/services/xml/rss/nyt/US.xml',
+        'https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml'
+        'https://rss.nytimes.com/services/xml/rss/nyt/World.xml'
         
-        all_headlines = []
-        start_number = 1
-        for symbol in ticker_symbols:
-            print(f"\nFetching news for {symbol}...")
-            headlines = fetch_news(symbol)
-            all_headlines.extend((symbol, title, link) for title, link, publisher in headlines)
-            # Display headlines with numbering and stock ticker
-            display_headlines(symbol, headlines, start_number)
-            start_number += len(headlines)
+    ]
 
-        # Prompt the user to search specific titles
-        while True:
-            try:
-                numbers_input = input("Enter the numbers of the titles you want to search, separated by commas (e.g., 1,3,5) or press Enter to skip: ")
+    # Define maximum width for text wrapping
+    MAX_WIDTH = 80
+
+    # Define refresh interval in seconds (e.g., 5 minutes)
+    REFRESH_INTERVAL = 300
+
+    # ANSI escape codes for colors
+    RED = '\033[91m'
+    BLUE = '\033[94m'
+    RESET = '\033[0m'
+
+    def print_wrapped(text, width=MAX_WIDTH):
+        """Print text with word wrapping."""
+        wrapped_text = textwrap.fill(text, width=width)
+        print(wrapped_text)
+
+    def clear_screen():
+        """Clear the terminal screen."""
+        os.system('cls' if os.name == 'nt' else 'clear')
+
+    def fetch_rss_feed(url):
+        feed = feedparser.parse(url)
+        # Print feed title in red
+        print(f"\n{'='*MAX_WIDTH}\n{RED}Feed Title: {feed.feed.title}{RESET}\n{'='*MAX_WIDTH}")
+        
+        for entry in feed.entries:
+            # Extract relevant information
+            title = entry.title
+            summary = entry.summary if 'summary' in entry else None
+            
+            # Print headline in blue and summary if available
+            if summary:
+                # Print headline in blue
+                print_wrapped(f"{BLUE}{title}{RESET}")
                 
-                if numbers_input.strip():  # Check if input is not empty
-                    numbers = [int(num.strip()) for num in numbers_input.split(',')]
+                # Add two lines of space
+                print()
+                
+                # Print summary
+                print_wrapped(f"   Summary: {summary}")
+                
+                # Add a line of space between each headline
+                print()
 
-                    # Validate and search links
-                    if all(1 <= number <= len(all_headlines) for number in numbers):
-                        links = [all_headlines[number - 1][2] for number in numbers]
-                        search_links_on_google(links)
-                        break
-                    else:
-                        print(f"Invalid numbers. Please enter numbers between 1 and {len(all_headlines)}.")
-                else:
-                    print("No titles selected for search. Exiting.")
-                    break
-            except ValueError:
-                print("Invalid input. Please enter valid numbers separated by commas.")
-    else:
-        print("No ticker symbols entered. Exiting news function.")
+    def main():
+            
+        print("\nFetching the latest RSS feed items...\n")
+            
+        for url in RSS_FEEDS:
+            print(f"Fetching from {url}...\n")
+            fetch_rss_feed(url)
+            
+    if __name__ == "__main__":
+        main()
+
+
 
 def options():
     import yfinance as yf
