@@ -1343,6 +1343,90 @@ def dcf():
     if __name__ == "__main__":
         calculate_intrinsic_value()
 
+def fs():
+    import requests
+    import pandas as pd
+    from bs4 import BeautifulSoup
+    from io import StringIO
+    from colorama import Fore, Style
+
+    # Set pandas options to display all rows and columns
+    pd.set_option('display.max_rows', None)
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.expand_frame_repr', False)
+
+    def fetch_financials(ticker, url_suffix):
+        url = f"https://stockanalysis.com/stocks/{ticker}/financials/{url_suffix}"
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.content, 'html.parser')
+            tables = soup.find_all('table')
+            
+            if tables:
+                table_html = StringIO(str(tables[0]))
+                df = pd.read_html(table_html)[0]
+                
+                # Remove the last column
+                df = df.iloc[:, :-1]
+                
+                return df
+            else:
+                print(f"No tables found on the page: {url}")
+                return None
+        else:
+            print(f"Failed to fetch the page. Status code: {response.status_code}")
+            return None
+
+    def print_separator():
+        print('-' * 80)
+
+    def format_value(value):
+        if isinstance(value, str) and value.startswith('-') and '%' in value:
+            return f"{Fore.RED}{value}{Style.RESET_ALL}"
+        else:
+            return value
+
+    def print_df_with_colored_first_column(df):
+        if df is not None and not df.empty:
+            # Determine the width of the first column based on the longest item
+            max_length = df.iloc[:, 0].astype(str).map(len).max() + 2
+            
+            # Calculate column widths for the rest of the columns
+            col_widths = [len(str(item)) for item in df.iloc[:, 1:].values.flatten()]
+            max_col_width = max(col_widths) + 2
+            
+            for index, row in df.iterrows():
+                # Format columns with fixed width first
+                first_col = f"{row.iloc[0]:<{max_length}}"
+                rest_cols = [f"{str(item):<{max_col_width}}" for item in row.iloc[1:]]
+                
+                # Apply color formatting
+                first_col_colored = f"{Fore.BLUE}{first_col}{Style.RESET_ALL}"
+                rest_cols_colored = [format_value(col) for col in rest_cols]
+                
+                print(f"{first_col_colored} " + " ".join(rest_cols_colored))
+        else:
+            print("No data to display.")
+
+    # Prompt the user to enter the ticker symbol
+    ticker = input("Enter the stock ticker symbol: ").strip().upper()
+
+    # List of URL suffixes and their descriptions
+    url_suffixes = [
+        ("", "Income Statement"),
+        ("balance-sheet/", "Balance Sheet"),
+        ("cash-flow-statement/", "Cash Flow Statement"),
+        ("ratios/", "Financial Ratios")
+    ]
+
+    # Fetch and print financial data for each URL
+    for suffix, description in url_suffixes:
+        print(f"\n{description}:")
+        print_separator()
+        financial_data = fetch_financials(ticker, suffix)
+        print_df_with_colored_first_column(financial_data)
+        print_separator()
 
 
 
@@ -1352,11 +1436,11 @@ def main():
         print("[ch]   [news] [cc]")
         print("[gm]   [des]  [fvn]")
         print("[sa]   [fv]   [hol] ")
-        print("[ins]  [sum]  [fs] ")
-        print("[rs]   [port] [10k]")
-        print("[10q]  [op]   [sim] ")
-        print("[ovs]  [vic]  [gain]")
-        print("[val]  [dcf]  [candle]")
+        print("[ins]  [roic] [fs] ")
+        print("[port] [10k]  [10q]  ")
+        print("[op]   [sim]  [ovs]")
+        print("[vic]  [gain] [val]")
+        print("[dcf]  [candle] [q]   ")
      
         
         choice = input("Choose an option: ").strip()
@@ -1408,26 +1492,14 @@ def main():
             import webbrowser
             webbrowser.open(url)
         elif choice == 'fs':
-            ticker = input("Enter ticker: ").strip().upper()
-            url = f"https://www.roic.ai/quote/{ticker}/financials"
-            import webbrowser
-            webbrowser.open(url)
-        elif choice == 'sum':
+            fs()
+        elif choice == 'roic':
             ticker = input("Enter ticker: ").strip().upper()
             url = f"https://www.roic.ai/quote/{ticker}"
             import webbrowser
             webbrowser.open(url)
-        elif choice == 'rs':
-            ticker = input("Enter ticker: ").strip().upper()
-            url = f"https://www.roic.ai/quote/{ticker}/ratios"
-            import webbrowser
-            webbrowser.open(url)
         elif choice == 'port':
             port()
-        #elif choice == 'add':
-           # add_position()
-       # elif choice == 'edit':
-           # remove_position()
         elif choice == 'des':
             des()
         elif choice == 'fvn':
