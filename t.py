@@ -5,6 +5,7 @@ import os
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import webbrowser 
+from edgar import *
 
 # File to save portfolio data
 PORTFOLIO_FILE = 'portfolio.json'
@@ -791,19 +792,16 @@ def cc():
 
     # Tickers for Commodities and Cryptocurrencies
     commodity_tickers = {
-        "Gold": "GC=F",
-       
-    }
-
-    # Tickers for Cryptocurrencies and Indices
-    crypto_tickers = {
+        "S&P 500": "VOO",
+        "NASDAQ 100": "QQQ",
+        "TQQQ": "TQQQ",
+        "QLD": "QLD",
+        "NTSX": "NTSX",
         "Bitcoin": "BTC-USD",
-        "Ethereum": "ETH-USD"
-    }
-
-    index_tickers = {
-        "S&P 500": "^GSPC",
-        "NASDAQ 100": "^NDX",
+        "Ethereum": "ETH-USD", 
+        "10-Year Treasury Yield": "^TNX", 
+        "30-Year Treasury Yield": "^TYX", 
+        "Gold": "GC=F"   
     }
 
     def colorize_percent(percent):
@@ -813,7 +811,7 @@ def cc():
 
     def print_performance(performance):
         for name, data in performance.items():
-            print(f"{BLUE}Commodity: {name} ({data['ticker']}){RESET}")
+            print(f"{BLUE}{name} ({data['ticker']}){RESET}")
             print(f"Current Price: ${data['current_price']:.2f}" if data['current_price'] != 'N/A' else "Current Price: N/A")
             print(f"1D %Δ: {colorize_percent(data['percent_change_today'])}" if data['percent_change_today'] != 'N/A' else "Percent Change Today: N/A")
             print()
@@ -850,13 +848,6 @@ def cc():
     commodity_performance = get_data(commodity_tickers)
     print_performance(commodity_performance)
 
-    # Get and print cryptocurrency data
-    crypto_performance = get_data(crypto_tickers)
-    print_performance(crypto_performance)
-
-    # Get and print index data
-    index_performance = get_data(index_tickers)
-    print_performance(index_performance)
 
 def des():
     import yfinance as yf
@@ -1624,6 +1615,134 @@ def portchart():
     plt.tight_layout(pad=2.0)  # Adjust padding to fit the plots
     plt.show(block=False)
 
+def sec():
+    import webbrowser
+
+    def open_sec_filing(ticker, filing_type):
+        base_url = "https://www.sec.gov/cgi-bin/browse-edgar"
+        if filing_type == 'k':
+            url = f"{base_url}?action=getcompany&CIK={ticker}&type=10-k&dateb=&owner=exclude&count=40"
+        elif filing_type == 'q':
+            url = f"{base_url}?action=getcompany&CIK={ticker}&type=10-q&dateb=&owner=exclude&count=40"
+        else:
+            print("Invalid filing type. Please enter 'k' for 10-K or 'q' for 10-Q.")
+            return
+        webbrowser.open(url)
+        print(f"Opening {ticker} {filing_type}")
+    def main():
+        ticker = input("Enter ticker symbol: ").strip().upper()
+        filing_type = input("Enter 'k' for 10-K or 'q' for 10-Q: ").strip().lower()
+        open_sec_filing(ticker, filing_type)
+    if __name__ == "__main__":
+        main()
+
+def seclist():
+    from datetime import datetime
+    import logging
+    import webbrowser  # To open links in the browser
+
+    # Set up logging
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+    # ANSI escape codes for text colors
+    RED = '\033[91m'
+    BLUE = '\033[94m'
+    ORANGE = '\033[38;5;208m'  # Orange (approximation)
+    RESET = '\033[0m'
+
+    def get_company_filings(ticker):
+        try:
+            # Set the identity with the provided email
+            set_identity("rishisraja0@gmail.com")
+
+            # Get the company
+            company = Company(ticker)
+
+            # Get 10-K and 10-Q filings
+            filings = company.get_filings(form=["10-K", "10-Q"])
+
+            # Prepare the results list
+            results = []
+
+            # Iterate through the filings and extract required information
+            for filing in filings:
+                try:
+                    # Get the filing object
+                    obj = filing.obj()
+                    
+                    # Extract the period of report
+                    if hasattr(obj, 'period_of_report'):
+                        period_of_report = obj.period_of_report
+                    elif hasattr(filing, 'filing_date'):
+                        period_of_report = filing.filing_date
+                    else:
+                        period_of_report = "Not available"
+                    
+                    # Format the date if it's a datetime object
+                    if isinstance(period_of_report, datetime):
+                        period_of_report = period_of_report.strftime('%Y-%m-%d')
+
+                    # Construct the correct filing link
+                    filing_link = f"https://www.sec.gov/cgi-bin/viewer?action=view&cik={filing.cik}&accession_number={filing.accession_number}&xbrl_type=v"
+                    
+                    # Construct the EDGAR browse link for the CIK
+                    cik_browse_link = f"https://www.sec.gov/edgar/browse/?CIK={filing.cik}&owner=exclude"
+
+                    # Append the filing information to the results list
+                    results.append({
+                        'form': filing.form,
+                        'cik': filing.cik,
+                        'accession_number': filing.accession_number,
+                        'period_of_report': period_of_report,
+                        'filing_link': filing_link,
+                        'cik_browse_link': cik_browse_link
+                    })
+                except AttributeError as e:
+                    logging.warning(f"Skipping a filing due to missing attribute: {str(e)}")
+                    continue
+
+            return results
+
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            return None
+
+    def main():
+        ticker = input("Enter a stock ticker: ").upper()
+        filings = get_company_filings(ticker)
+
+        if filings:
+            print(f"\nFilings for {ticker}:")
+            for i, filing in enumerate(filings, 1):
+                # Set the color based on the form type
+                form_color = BLUE if filing['form'] == '10-Q' else ORANGE if filing['form'] == '10-K' else RESET
+                # Print the filing information with colors
+                print(f"{RED}[{i}]{RESET}Form: {form_color}{filing['form']}{RESET}")
+                print(f"CIK: {filing['cik']}")
+                print(f"Accession Number: {filing['accession_number']}")
+                print(f"Filing Date: {filing['period_of_report']}")
+                #print(f"Filing Link: {filing['filing_link']}")
+                #print(f"CIK Browse Link: {filing['cik_browse_link']}")
+                print()  # Add an empty line between filings for better readability
+
+            # Prompt the user to select a filing
+            choice = input("Enter the number of the filing you want to open (or press Enter to skip): ")
+            if choice.isdigit() and 1 <= int(choice) <= len(filings):
+                selected_filing = filings[int(choice) - 1]
+                print(f"Opening {selected_filing['form']} for period {selected_filing['period_of_report']}")
+
+                # Open the filing link
+                webbrowser.open(selected_filing['filing_link'])
+
+                # Open the CIK browse link
+                webbrowser.open(selected_filing['cik_browse_link'])
+            else:
+                print("No valid filing selected or skipping.")
+        else:
+            print(f"No filings found for {ticker}")
+
+    if __name__ == "__main__":
+        main()
 
 def main():
     while True:
@@ -1636,8 +1755,9 @@ def main():
         print("[op]   [sim]  [ovs]")
         print("[vic]  [gain] [val]")
         print("[dcf]  [sc]   [cl]")
-        print("[fund] [pch]  [q]")
-        
+        print("[fund] [pch]  [sec]")
+        print("[seclist]     [q]")
+
         choice = input("Choose an option: ").strip()
         
         if choice == 'ch':
@@ -1724,6 +1844,10 @@ def main():
             fund()
         elif choice == 'pch':
             portchart()
+        elif choice == 'sec':
+            sec()
+        elif choice == 'seclist':
+            seclist()
         elif choice == 'q':
             break
         else:
