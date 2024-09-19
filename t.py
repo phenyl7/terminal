@@ -42,42 +42,17 @@ def get_stock_data(ticker):
 def plot():
     import matplotlib.pyplot as plt
     import yfinance as yf
-    from datetime import datetime, timedelta
-    import re
-
-    def parse_duration(duration):
-        """Convert duration string to number of days."""
-        match = re.match(r"(\d+)([dmy])", duration.strip().lower())
-        if not match:
-            print("Invalid duration format. Use 'd' for days, 'm' for months, 'y' for years.")
-            return None
-        
-        number, unit = match.groups()
-        number = int(number)
-        
-        if unit == 'd':
-            return number
-        elif unit == 'm':
-            return number * 30  # Approximate number of days in a month
-        elif unit == 'y':
-            return number * 365.25  # Approximate number of days in a year
-        else:
-            print("Unsupported unit. Use 'd' for days, 'm' for months, 'y' for years.")
-            return None
+    from datetime import datetime
 
     def plot_stock_price():
-        # Prompt for ticker and duration
+        # Specify ticker symbol
         ticker = input("Enter the stock ticker: ")
-        duration_input = input("Enter the duration (e.g., 1d for 1 day, 7d for 7 days, 1m for 1 month, 2y for 2 years): ")
 
-        # Convert duration input to number of days
-        days = parse_duration(duration_input)
-        if days is None:
-            return
-
-        # Download stock data
+        # Set the date range for YTD
         end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
+        start_date = datetime(end_date.year, 1, 1)  # January 1st of the current year
+        
+        # Download stock data
         stock_data = yf.download(ticker, start=start_date, end=end_date)
 
         if stock_data.empty:
@@ -108,16 +83,9 @@ def plot():
         # Adjust y-axis limits
         y_min = stock_data['Adj Close'].min()
         y_max = stock_data['Adj Close'].max()
+        ax1[0].set_ylim(y_min * 0.90, y_max * 1.10)
 
-        # Dynamic adjustment for short timeframes
-        if days <= 30:  # For timeframes up to 30 days
-            ax1[0].set_ylim(y_min * 0.98, y_max * 1.02)  # Slightly expanded range for better visibility
-        elif days <= 365:  # For timeframes up to 1 year
-            ax1[0].set_ylim(y_min * 0.95, y_max * 1.05)
-        else:  # For timeframes longer than 1 year
-            ax1[0].set_ylim(y_min * 0.90, y_max * 1.10)
-
-        ax1[0].set_title(f'{ticker} {duration_input}', color='white')
+        ax1[0].set_title(f'{ticker} YTD', color='white')
         ax1[0].set_ylabel('Price', color='white')
         ax1[0].legend()
         ax1[0].set_facecolor('black')  # Background color of the plot
@@ -1674,11 +1642,11 @@ def seclist():
 def main():
     while True:
         print("\nMenu:")
-        print("[ch] [news] [cc] [gm] [des] [wl]")
-        print("[sa] [fv] [hol] [ins] [roic] [fs]")
-        print("[port] [10k] [10q] [op] [sim] [ovs]")
-        print("[vic] [gain] [val] [dcf] [sc] [cl]")
-        print("[fund] [pch] [sec] [secl] [pn] [screen]")
+        print("[ch][news][cc][gm][des][wl]")
+        print("[sa][fv][hol][ins][roic][fs]")
+        print("[port][10k][10q][op][sim][ovs]")
+        print("[vic][gain][val][dcf][sc][cl]")
+        print("[fund][pch][sec][secl][pn][screen]")
 
         choice = input("Choose an option: ").strip()
         
