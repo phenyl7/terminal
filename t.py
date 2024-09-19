@@ -621,7 +621,7 @@ def sc():
             stock_data['RSI'] = calculate_rsi(stock_data)
 
             # Create custom market colors (orange for all)
-            mc = mpf.make_marketcolors(up='green', down='red', wick='inherit', edge='inherit', volume='darkblue')
+            mc = mpf.make_marketcolors(up='lime', down='red', wick='inherit', edge='inherit', volume='darkblue')
 
             # Create a style based on 'nightclouds' but with modified market colors
             s = mpf.make_mpf_style(base_mpf_style='nightclouds', marketcolors=mc)
@@ -634,7 +634,7 @@ def sc():
             ap_rsi = [
                 mpf.make_addplot(stock_data['RSI'], panel=2, color='grey', ylabel='RSI'),
                 mpf.make_addplot(rsi_above_70, panel=2, color='red', alpha=1),  # Red fill for RSI > 70
-                mpf.make_addplot(rsi_below_30, panel=2, color='green', alpha=1),  # Green fill for RSI < 30
+                mpf.make_addplot(rsi_below_30, panel=2, color='lime', alpha=1),  # Green fill for RSI < 30
             ]
 
             # Plot the stock data using mplfinance with the RSI and volume plots
@@ -643,7 +643,7 @@ def sc():
 
             # Reduce x-axis font size and set color to orange
             for ax in axes:
-                ax.tick_params(axis='x', labelsize=8, colors='orange')  # Set x-axis font size to 8 and color to orange
+                ax.tick_params(axis='x', labelsize=2, colors='orange')  # Set x-axis font size to 8 and color to orange
                 ax.yaxis.label.set_color('orange')  # Set y-axis label color to orange
                 ax.tick_params(axis='y', colors='orange')  # Set y-axis tick label color to orange
 
