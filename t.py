@@ -1363,87 +1363,110 @@ def cl():
         webbrowser.open(url)
 
 def fund():
-    import requests
-    from bs4 import BeautifulSoup
     import webbrowser
 
-    def scrape_holdings(url):
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-        response = requests.get(url, headers=headers)
-        
-        if response.status_code != 200:
-            print(f"Failed to retrieve the page. Status code: {response.status_code}")
-            return
-        
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Find all tables on the page
-        tables = soup.find_all('table')
-        print(f"Found {len(tables)} table(s) on the page.")
-        
-        if tables:
-            table = tables[0]
-            
-            # Extract table rows
-            rows = []
-            for row in table.find_all('tr')[1:]:  # Skip header row
-                cols = [col.text.strip() for col in row.find_all('td')]
-                if cols:  # Only add rows that contain columns
-                    rows.append(cols)
-            
-            # Check if rows are empty
-            if not rows:
-                print("No data rows found in the table.")
-                return
-            
-            # Determine maximum column widths
-            num_cols = max(len(row) for row in rows)
-            max_col_widths = [0] * num_cols
-            
-            for row in rows:
-                for i, col in enumerate(row):
-                    max_col_widths[i] = max(max_col_widths[i], len(col))
-            
-            # Print the results with aligned columns
-            print("\nTable Data:")
-            for row in rows:
-                # Ensure all rows have the same number of columns
-                row = row + [''] * (num_cols - len(row))
-                print(" | ".join(f"{col:<{max_col_widths[i]}}" for i, col in enumerate(row)))
-        else:
-            print("No tables found on the page.")
-        
-        # Ask user if they want to open the URL
-        open_link = input(f"Do you want to open the URL in your browser? (y/n): ").strip().lower()
-        if open_link == 'y':
-            webbrowser.open(url)
-        else:
-            print("The URL was not opened.")
+    # ANSI escape codes for color
+    GREEN = "\033[38;5;214m"      #orange
+    BLUE = "\033[94m"
+    RESET = "\033[0m"
 
     def main():
-        fund = input("Enter the fund name: ").strip().lower()
-        if fund == "scion":
-            url = "https://www.dataroma.com/m/holdings.php?m=SAM"
-        elif fund == "icahn":
-            url = "https://www.dataroma.com/m/holdings.php?m=ic"
-        elif fund == "ackman":
-            url = "https://www.dataroma.com/m/holdings.php?m=psc"
-        elif fund == "brk":
-            url = "https://www.dataroma.com/m/holdings.php?m=BRK"
-        elif fund == "big bets":
-            url = "https://www.dataroma.com/m/g/portfolio.php?o=b"
-        elif fund == "low":
-            url = "https://www.dataroma.com/m/g/portfolio.php?pct=5&o=ru"
+        # List of hedge funds and their corresponding links
+        hedge_funds = {
+            1: "Scion Asset Management LLC",
+            2: "Berkshire Hathaway Inc",
+            3: "Icahn Carl C et al",
+            4: "Towle & Co",
+            5: "Fairfax Financial Holdings Ltd (CAN)",
+            6: "Baupost Group LLC (MA)",
+            7: "Pamet Capital Management LP",
+            8: "Appaloosa Management LP",
+            9: "Greenlight Re (David Einhorn)",  # Link is from DataRoma
+            10: "Lapides Asset Management LLC",
+            11: "Perceptive Advisors LLC",
+            12: "Ares Management LLC",
+            13: "Oaktree Capital Management LLC",
+            14: "MHR Fund Management LLC",
+            15: "Hussman Econometrics Advisors Inc",
+            16: "Third Avenue Management LLC",
+            17: "Walthausen & Co LLC",
+            18: "Portolan Capital Management LLC",
+            19: "Gavekal Capital LLC",
+            20: "Signia Capital Management LLC",
+            21: "Bernzott Capital Advisors",
+            22: "Sheffield Asset Management",
+            23: "Hodges Capital Management Inc",
+            24: "Weitz Wallace R & Co",
+            25: "Intrepid Capital Management Inc",
+            26: "Old West Investment Management LLC",
+            27: "Luminus Management LLC",
+            28: "O'Shaughnessy Asset Management LLC",
+            29: "Kopernik Global Investors LLC", 
+            30: "dataroma"
+        }
+
+        # Dictionary of links
+        links = {
+            1: "https://whalewisdom.com/filer/scion-asset-management-llc",
+            2: "https://whalewisdom.com/filer/berkshire-hathaway-inc",
+            3: "https://whalewisdom.com/filer/icahn-carl-c-et-al",
+            4: "https://whalewisdom.com/filer/towle-co",
+            5: "https://whalewisdom.com/filer/fairfax-financial-holdings-ltd-can",
+            6: "https://whalewisdom.com/filer/baupost-group-llc-ma",
+            7: "https://whalewisdom.com/filer/pamet-capital-management-lp",
+            8: "https://whalewisdom.com/filer/appaloosa-management-lp",
+            9: "https://www.dataroma.com/m/holdings.php?m=GLRE",
+            10: "https://whalewisdom.com/filer/lapides-asset-management-llc",
+            11: "https://whalewisdom.com/filer/perceptive-advisors-llc",
+            12: "https://whalewisdom.com/filer/ares-management-llc",
+            13: "https://whalewisdom.com/filer/oaktree-capital-management-llc",
+            14: "https://whalewisdom.com/filer/mhr-fund-management-llc",
+            15: "https://whalewisdom.com/filer/hussman-econometrics-advisors-inc",
+            16: "https://whalewisdom.com/filer/third-avenue-management-llc",
+            17: "https://whalewisdom.com/filer/walthausen-amp-co-llc",
+            18: "https://whalewisdom.com/filer/portolan-capital-management-llc",
+            19: "https://whalewisdom.com/filer/gavekal-capital-llc",
+            20: "https://whalewisdom.com/filer/signia-capital-management-llc",
+            21: "https://whalewisdom.com/filer/bernzott-capital-advisors",
+            22: "https://whalewisdom.com/filer/sheffield-asset-management",
+            23: "https://whalewisdom.com/filer/hodges-capital-management-inc",
+            24: "https://whalewisdom.com/filer/weitz-wallace-r-co",
+            25: "https://whalewisdom.com/filer/intrepid-capital-management-inc",
+            26: "https://whalewisdom.com/filer/old-west-investment-management-llc",
+            27: "https://whalewisdom.com/filer/luminus-management-llc",
+            28: "https://whalewisdom.com/filer/o-shaughnessy-asset-management-llc",
+            29: "https://whalewisdom.com/filer/kopernik-global-investors-llc",
+            30: "https://www.dataroma.com/m/home.php"
+
+        }
+
+        # Display the list of hedge funds with numbers
+        print("Select one or more hedge funds by entering the corresponding numbers (comma-separated), or type 'all' to open all:")
+        for number, fund in hedge_funds.items():
+            print(f"{GREEN}{number}. {BLUE}{fund}{RESET}")
+
+        # Get user input
+        choice = input("Enter your choice: ").strip().lower()
+
+        if choice == "all":
+            # Open all links
+            for link in links.values():
+                webbrowser.open(link)
         else:
-            print("No action defined for this fund.")
-            return
-        
-        scrape_holdings(url)
+            # Split the input by commas and try to convert to integers
+            try:
+                choices = [int(x.strip()) for x in choice.split(",")]
+                for num in choices:
+                    if num in links:
+                        webbrowser.open(links[num])
+                    else:
+                        print(f"Invalid choice: {num}. Please select a valid number.")
+            except ValueError:
+                print("Invalid input. Please enter numbers or 'all'.")
 
     if __name__ == "__main__":
         main()
+
 
 def portchart():
     import json
@@ -1530,113 +1553,6 @@ def sec():
     if __name__ == "__main__":
         main()
 
-def seclist():
-    from datetime import datetime
-    import logging
-    import webbrowser  # To open links in the browser
-
-    # Set up logging
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-    # ANSI escape codes for text colors
-    RED = '\033[91m'
-    BLUE = '\033[94m'
-    ORANGE = '\033[38;5;208m'  # Orange (approximation)
-    RESET = '\033[0m'
-
-    def get_company_filings(ticker):
-        try:
-            # Set the identity with the provided email
-            set_identity("rishisraja0@gmail.com")
-
-            # Get the company
-            company = Company(ticker)
-
-            # Get 10-K and 10-Q filings
-            filings = company.get_filings(form=["10-K", "10-Q"])
-
-            # Prepare the results list
-            results = []
-
-            # Iterate through the filings and extract required information
-            for filing in filings:
-                try:
-                    # Get the filing object
-                    obj = filing.obj()
-                    
-                    # Extract the period of report
-                    if hasattr(obj, 'period_of_report'):
-                        period_of_report = obj.period_of_report
-                    elif hasattr(filing, 'filing_date'):
-                        period_of_report = filing.filing_date
-                    else:
-                        period_of_report = "Not available"
-                    
-                    # Format the date if it's a datetime object
-                    if isinstance(period_of_report, datetime):
-                        period_of_report = period_of_report.strftime('%Y-%m-%d')
-
-                    # Construct the correct filing link
-                    filing_link = f"https://www.sec.gov/cgi-bin/viewer?action=view&cik={filing.cik}&accession_number={filing.accession_number}&xbrl_type=v"
-                    
-                    # Construct the EDGAR browse link for the CIK
-                    cik_browse_link = f"https://www.sec.gov/edgar/browse/?CIK={filing.cik}&owner=exclude"
-
-                    # Append the filing information to the results list
-                    results.append({
-                        'form': filing.form,
-                        'cik': filing.cik,
-                        'accession_number': filing.accession_number,
-                        'period_of_report': period_of_report,
-                        'filing_link': filing_link,
-                        'cik_browse_link': cik_browse_link
-                    })
-                except AttributeError as e:
-                    logging.warning(f"Skipping a filing due to missing attribute: {str(e)}")
-                    continue
-
-            return results
-
-        except Exception as e:
-            logging.error(f"An error occurred: {str(e)}")
-            return None
-
-    def main():
-        ticker = input("Enter a stock ticker: ").upper()
-        filings = get_company_filings(ticker)
-
-        if filings:
-            print(f"\nFilings for {ticker}:")
-            for i, filing in enumerate(filings, 1):
-                # Set the color based on the form type
-                form_color = BLUE if filing['form'] == '10-Q' else ORANGE if filing['form'] == '10-K' else RESET
-                # Print the filing information with colors
-                print(f"{RED}[{i}]{RESET}Form: {form_color}{filing['form']}{RESET}")
-                print(f"CIK: {filing['cik']}")
-                print(f"Accession Number: {filing['accession_number']}")
-                print(f"Filing Date: {filing['period_of_report']}")
-                #print(f"Filing Link: {filing['filing_link']}")
-                #print(f"CIK Browse Link: {filing['cik_browse_link']}")
-                print()  # Add an empty line between filings for better readability
-
-            # Prompt the user to select a filing
-            choice = input("Enter the number of the filing you want to open (or press Enter to skip): ")
-            if choice.isdigit() and 1 <= int(choice) <= len(filings):
-                selected_filing = filings[int(choice) - 1]
-                print(f"Opening {selected_filing['form']} for period {selected_filing['period_of_report']}")
-
-                # Open the filing link
-                webbrowser.open(selected_filing['filing_link'])
-
-                # Open the CIK browse link
-                webbrowser.open(selected_filing['cik_browse_link'])
-            else:
-                print("No valid filing selected or skipping.")
-        else:
-            print(f"No filings found for {ticker}")
-
-    if __name__ == "__main__":
-        main()
 
 def main():
     while True:
@@ -1645,7 +1561,7 @@ def main():
         print("[sa][fv][hol][ins][roic][fs]")
         print("[port][10k][10q][op][sim][ovs]")
         print("[vic][gain][val][dcf][sc][cl]")
-        print("[fund][pch][sec][secl][pn][screen]")
+        print("[fund][pch][pn][sec][screen]")
 
         choice = input("Choose an option: ").strip()
         
@@ -1734,16 +1650,14 @@ def main():
             fund()
         elif choice == 'pch':
             portchart()
-        elif choice == 'sec':
-            sec()
-        elif choice == 'secl':
-            seclist()
         elif choice == 'screen':
             import webbrowser
             webbrowser.open("https://finviz.com/screener.ashx")
         elif choice == 'pn':
             import webbrowser
             webbrowser.open("https://finviz.com/portfolio.ashx?v=1&pid=1911250")
+        elif choice == 'sec':
+            sec()
         elif choice == 'q':
             break
         else:
