@@ -50,7 +50,7 @@ def plot():
 
         # Set the date range for YTD
         end_date = datetime.now()
-        start_date = datetime(end_date.year, 1, 1)  # January 1st of the current year
+        start_date = end_date - timedelta(days=1*365)
         
         # Download stock data
         stock_data = yf.download(ticker, start=start_date, end=end_date)
@@ -85,7 +85,7 @@ def plot():
         y_max = stock_data['Adj Close'].max()
         ax1[0].set_ylim(y_min * 0.90, y_max * 1.10)
 
-        ax1[0].set_title(f'{ticker} YTD', color='white')
+        ax1[0].set_title(f'{ticker} 1Y', color='white')
         ax1[0].set_ylabel('Price', color='white')
         ax1[0].legend()
         ax1[0].set_facecolor('black')  # Background color of the plot
@@ -105,7 +105,6 @@ def plot():
 
     if __name__ == "__main__":
         plot_stock_price()
-
 
 
 def port():
