@@ -384,146 +384,14 @@ def gm():
 
         print(f"Total Portfolio Value: ${total_value:.2f}")
 
-    def fetch_news(ticker_symbol):
-        ticker = yf.Ticker(ticker_symbol)
-        news = ticker.news
-
-        headlines = []
-        for article in news[:8]:  # Always fetch 8 headlines
-            title = article.get('title', 'No title available')
-            link = article.get('link', 'No link available')
-            publisher = article.get('publisher', 'No publisher available')
-            headlines.append((title, link, publisher))
-            
-        return headlines
-
-    def display_all_headlines(news_data):
-        counter = 1  # Unique number for each headline
-        headline_map = {}  # Store all headlines with numbers
-        for ticker, headlines in news_data.items():
-            print(f"\n{YELLOW}News for {ticker.upper()}:{RESET}")
-            for title, link, publisher in headlines:
-                print(f"[{counter}] {YELLOW}Title: {title}{RESET}")
-                print(f"    {WHITE}Publisher: {publisher}{RESET}")
-                headline_map[counter] = link
-                counter += 1
-        return headline_map
-
-    def open_link_in_browser(headline_map):
-        try:
-            choice = int(input("Enter the number of the article to open (or 0 to skip): "))
-            if choice in headline_map:
-                link = headline_map[choice]
-                print(f"Opening article...")
-                webbrowser.open(link)
-            elif choice == 0:
-                print("Skipping article opening...")
-            else:
-                print("Invalid choice.")
-        except ValueError:
-            print("Please enter a valid number.")
-
     # Main function logic
     print(get_greeting())
-    
+
     portfolio_file = 'portfolio.json'  # Path to your portfolio.json file
     portfolio = load_portfolio(portfolio_file)
     performance, total_value = calculate_performance(portfolio)
     print_performance(performance, total_value)
 
-    # Fetch and display news for each ticker
-    news_data = {}
-    for ticker in portfolio.keys():
-        if ticker == "1":
-            continue
-        news_data[ticker] = fetch_news(ticker)
-
-    # Display all headlines with unique numbers and map them for opening
-    headline_map = display_all_headlines(news_data)
-
-    # Prompt to open a link in the browser
-    open_link_in_browser(headline_map)
-
-
-def news():
-    import feedparser
-    import textwrap
-    import os
-    from datetime import datetime
-
-    # List of RSS feed URLs
-    RSS_FEEDS = [
-        'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml', 
-        'https://rss.nytimes.com/services/xml/rss/nyt/World.xml',
-        'https://rss.nytimes.com/services/xml/rss/nyt/US.xml'
-    ]
-
-    # Define maximum width for text wrapping
-    MAX_WIDTH = 80
-
-    # ANSI escape codes for colors
-    RED = '\033[91m'
-    BLUE = '\033[94m'
-    RESET = '\033[0m'
-
-    def print_wrapped(text, width=MAX_WIDTH):
-        """Print text with word wrapping."""
-        wrapped_text = textwrap.fill(text, width=width)
-        print(wrapped_text)
-
-    def clear_screen():
-        """Clear the terminal screen."""
-        os.system('cls' if os.name == 'nt' else 'clear')
-
-    def format_timestamp(entry):
-        """Format the published timestamp of an RSS entry."""
-        # Extract the timestamp and format it into a readable form
-        if 'published_parsed' in entry:
-            pub_date = datetime(*entry.published_parsed[:6])
-            return pub_date.strftime('%Y-%m-%d %H:%M:%S')
-        else:
-            return "No Timestamp Available"
-
-    def fetch_rss_feed(url):
-        feed = feedparser.parse(url)
-        
-        # Check if the 'title' attribute exists and handle the case where it's missing
-        feed_title = feed.feed.get('title', 'No Title Available')
-        
-        # Print feed title in red
-        print(f"\n{'='*MAX_WIDTH}\n{RED}Feed Title: {feed_title}{RESET}\n{'='*MAX_WIDTH}")
-        
-        for entry in feed.entries:
-            # Extract relevant information
-            title = entry.get('title', 'No Title')
-            summary = entry.get('summary', None)  # Allow summary to be None
-            timestamp = format_timestamp(entry)
-            
-            # Print headline in blue
-            print_wrapped(f"{BLUE}{title}{RESET}")
-            
-            # Print the timestamp
-            print_wrapped(f"   Published on: {timestamp}")
-            
-            # Add two lines of space
-            print()
-            
-            # Print summary if available
-            if summary:
-                print_wrapped(f"   Summary: {summary}")
-            
-            # Add a line of space between each headline
-            print()
-
-    def main():
-        print("\nFetching the latest RSS feed items...\n")
-        
-        for url in RSS_FEEDS:
-            print(f"Fetching from {url}...\n")
-            fetch_rss_feed(url)
-
-    if __name__ == "__main__":
-        main()
 
 
 def options():
@@ -743,42 +611,101 @@ def sim():
     
 def sc():
     import yfinance as yf
-    import datetime
-    from mplchart.chart import Chart
-    from mplchart.primitives import Candlesticks, Volume
-    from mplchart.indicators import ROC, SMA, EMA, RSI, MACD
+    import mplfinance as mpf
+    import pandas as pd
 
-    # User input for ticker and number of years
-    ticker = input("Enter stock ticker: ")
-    years = float(input("Enter number of years of data: "))
+    # Calculate RSI function (14-period)
+    def calculate_rsi(data, window=14):
+        delta = data['Close'].diff(1)
+        gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs))
+        return rsi
 
-    # Calculate the start and end dates
-    end_date = datetime.datetime.now()
-    start_date = end_date - datetime.timedelta(days=int(years * 365.25))  # Using 365.25 to account for leap years
+    # Dictionary to map user input to valid periods and intervals accepted by yfinance
+    timeframes = {
+        '1d': ('1d', '1m'),    # 1-day chart with 1-minute interval
+        '7d': ('5d', '5m'),    # 5-day chart with 5-minute interval (Yahoo Finance's limit)
+        '1m': ('1mo', '1d'),   # 1-month chart with daily interval
+        '3m': ('3mo', '1d'),   # 3-month chart with daily interval
+        '6m': ('6mo', '1d'),   # 6-month chart with daily interval
+        'ytd': ('ytd', '1d'),  # Year-to-date chart with daily interval
+        '1y': ('1y', '1d'),    # 1-year chart with daily interval
+        '2y': ('2y', '1d'),    # 2-year chart with daily interval
+        '5y': ('5y', '1d'),    # 5-year chart with daily interval
+        '10y': ('10y', '1d')   # Maximum available data
+    }
 
-    # Fetch historical data
-    prices = yf.Ticker(ticker).history(start=start_date, end=end_date)
+    def plot_stock_chart(ticker, timeframe):
+        try:
+            # Get the period and interval for the timeframe
+            period, interval = timeframes[timeframe]
 
-    # Calculate percent change
-    start_price = prices['Close'].iloc[0]  # Price at the start date
-    end_price = prices['Close'].iloc[-1]   # Price at the end date
-    percent_change = ((end_price - start_price) / start_price) * 100
+            # Download historical stock data with appropriate interval
+            stock_data = yf.download(ticker, period=period, interval=interval)
 
-    # Define the number of bars to display (max_bars) - can be adjusted as needed
-    max_bars = 250
+            # Check if data is available
+            if stock_data.empty:
+                print(f"No data available for {ticker} in the selected timeframe.")
+                return
 
-    # Define indicators
-    indicators = [
-        Candlesticks(),  
-        Volume(),
-        RSI(),
-        MACD()
-    ]
+            # Calculate RSI
+            stock_data['RSI'] = calculate_rsi(stock_data)
 
-    # Create and plot the chart with percent change in the title
-    chart = Chart(title=f'{ticker} - {percent_change:.2f}% Change', max_bars=max_bars)
-    chart.plot(prices, indicators)
-    chart.show()
+            # Create custom market colors (orange for all)
+            mc = mpf.make_marketcolors(up='green', down='red', wick='inherit', edge='inherit', volume='darkblue')
+
+            # Create a style based on 'nightclouds' but with modified market colors
+            s = mpf.make_mpf_style(base_mpf_style='nightclouds', marketcolors=mc)
+
+            # Shade areas for RSI: red when RSI is above 70, green when below 30
+            rsi_above_70 = stock_data['RSI'].apply(lambda x: x if x > 70 else None)
+            rsi_below_30 = stock_data['RSI'].apply(lambda x: x if x < 30 else None)
+
+            # Additional plot for RSI (on its own panel) with red and green shading
+            ap_rsi = [
+                mpf.make_addplot(stock_data['RSI'], panel=2, color='grey', ylabel='RSI'),
+                mpf.make_addplot(rsi_above_70, panel=2, color='red', alpha=1),  # Red fill for RSI > 70
+                mpf.make_addplot(rsi_below_30, panel=2, color='green', alpha=1),  # Green fill for RSI < 30
+            ]
+
+            # Plot the stock data using mplfinance with the RSI and volume plots
+            fig, axes = mpf.plot(stock_data, type='candle', style=s, title='',  # Set title='' to avoid duplicate title
+                                addplot=ap_rsi, volume=True, volume_panel=1, tight_layout=True, returnfig=True)
+
+            # Reduce x-axis font size and set color to orange
+            for ax in axes:
+                ax.tick_params(axis='x', labelsize=8, colors='orange')  # Set x-axis font size to 8 and color to orange
+                ax.yaxis.label.set_color('orange')  # Set y-axis label color to orange
+                ax.tick_params(axis='y', colors='orange')  # Set y-axis tick label color to orange
+
+            # Manually set title font size and color to orange
+            axes[0].set_title(f"{ticker.upper()} - {timeframe} Chart", fontsize=10, color='orange')
+
+            # Get the latest closing price
+            latest_price = stock_data['Close'][-1]
+
+            # Add latest price in the top-left corner of the main panel (axes[0] is the price panel) with orange text
+            axes[0].text(0.01, 0.95, f"Latest Price: ${latest_price:.2f}", transform=axes[0].transAxes,
+                        fontsize=10, color='orange', verticalalignment='top')
+
+            # Show the plot
+            mpf.show(block=False)
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
+    # Input from user
+    ticker = input("Enter the stock ticker symbol: ").upper()
+    timeframe = input("Enter timeframe (1d, ytd, 1y, 2y, 5y, 10y): ").lower()
+
+    # Validate user input for timeframe
+    if timeframe not in timeframes:
+        print(f"Invalid timeframe '{timeframe}'. Please enter one of: {', '.join(timeframes.keys())}")
+    else:
+        plot_stock_chart(ticker, timeframe)
+
 
     
 def cc():
@@ -1747,23 +1674,19 @@ def seclist():
 def main():
     while True:
         print("\nMenu:")
-        print("[ch]   [news] [cc]")
-        print("[gm]   [des]  [fvn]")
-        print("[sa]   [fv]   [hol] ")
-        print("[ins]  [roic] [fs] ")
-        print("[port] [10k]  [10q]  ")
-        print("[op]   [sim]  [ovs]")
-        print("[vic]  [gain] [val]")
-        print("[dcf]  [sc]   [cl]")
-        print("[fund] [pch]  [sec]")
-        print("[seclist]     [q]")
+        print("[ch] [news] [cc] [gm] [des] [wl]")
+        print("[sa] [fv] [hol] [ins] [roic] [fs]")
+        print("[port] [10k] [10q] [op] [sim] [ovs]")
+        print("[vic] [gain] [val] [dcf] [sc] [cl]")
+        print("[fund] [pch] [sec] [secl] [pn] [screen]")
 
         choice = input("Choose an option: ").strip()
         
         if choice == 'ch':
             plot()
         elif choice == 'news':
-            news()
+            import webbrowser
+            webbrowser.open("https://finviz.com/news.ashx")
         elif choice == 'cc':
             cc()
         elif choice == 'gm':
@@ -1817,9 +1740,9 @@ def main():
             port()
         elif choice == 'des':
             des()
-        elif choice == 'fvn':
+        elif choice == 'wl':
             import webbrowser
-            webbrowser.open("https://finviz.com/news.ashx")
+            webbrowser.open("https://finviz.com/portfolio.ashx?pid=1909245")
         elif choice == 'op':
             options()
         elif choice == 'sim':
@@ -1846,8 +1769,14 @@ def main():
             portchart()
         elif choice == 'sec':
             sec()
-        elif choice == 'seclist':
+        elif choice == 'secl':
             seclist()
+        elif choice == 'screen':
+            import webbrowser
+            webbrowser.open("https://finviz.com/screener.ashx")
+        elif choice == 'pn':
+            import webbrowser
+            webbrowser.open("https://finviz.com/portfolio.ashx?v=1&pid=1911250")
         elif choice == 'q':
             break
         else:
