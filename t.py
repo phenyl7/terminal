@@ -635,37 +635,35 @@ def sim():
 
     
 def sc():
+    RED = "\033[91m"
+    BLUE = "\033[38;5;24m"
+    #ORANGE = "\033[38;5;214m"
+    #GREEN = "\033[38;5;22m"
+    #LIGHT_GRAY = "\033[38;5;250m"
+    #DARK_GRAY = "\033[38;5;235m"
+    BROWN = "\033[38;5;130m"
+    RESET = "\033[0m"
+
     import yfinance as yf
     import mplfinance as mpf
     import pandas as pd
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Rectangle
 
-    # Calculate RSI function (14-period)
-    def calculate_rsi(data, window=14):
-        delta = data['Close'].diff(1)
-        gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
-        rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
-        return rsi
-
-    # Dictionary to map user input to valid periods and intervals accepted by yfinance
-    timeframes = {
-        '1d': ('1d', '1m'),    # 1-day chart with 1-minute interval
-        '7d': ('5d', '5m'),    # 5-day chart with 5-minute interval (Yahoo Finance's limit)
-        '1m': ('1mo', '1d'),   # 1-month chart with daily interval
-        '3m': ('3mo', '1d'),   # 3-month chart with daily interval
-        '6m': ('6mo', '1d'),   # 6-month chart with daily interval
-        'ytd': ('ytd', '1d'),  # Year-to-date chart with daily interval
-        '1y': ('1y', '1d'),    # 1-year chart with daily interval
-        '2y': ('2y', '1d'),    # 2-year chart with daily interval
-        '5y': ('5y', '1d'),    # 5-year chart with daily interval
-        '10y': ('10y', '1d')   # Maximum available data
+    # Dictionary to map numbers to valid periods and intervals accepted by yfinance
+    timeframe_options = {
+        '1': ('1d', '1m'),    # 1-day chart with 1-minute interval
+        '2': ('ytd', '1d'),   # Year-to-date chart with daily interval
+        '3': ('1y', '1d'),    # 1-year chart with daily interval
+        '4': ('2y', '1d'),    # 2-year chart with daily interval
+        '5': ('5y', '1d'),    # 5-year chart with daily interval
+        '6': ('10y', '1d')    # Maximum available data
     }
 
     def plot_stock_chart(ticker, timeframe):
         try:
-            # Get the period and interval for the timeframe
-            period, interval = timeframes[timeframe]
+            # Get the period and interval for the selected option
+            period, interval = timeframe_options[timeframe]
 
             # Download historical stock data with appropriate interval
             stock_data = yf.download(ticker, period=period, interval=interval)
@@ -675,61 +673,74 @@ def sc():
                 print(f"No data available for {ticker} in the selected timeframe.")
                 return
 
-            # Calculate RSI
-            stock_data['RSI'] = calculate_rsi(stock_data)
-
-            # Create custom market colors (orange for all)
+            # Customize the market colors: up candles are dark blue, down candles are black
             mc = mpf.make_marketcolors(up='lime', down='red', wick='inherit', edge='inherit', volume='darkblue')
 
-            # Create a style based on 'nightclouds' but with modified market colors
+            # Use the default style but with custom market colors
             s = mpf.make_mpf_style(base_mpf_style='nightclouds', marketcolors=mc)
 
-            # Shade areas for RSI: red when RSI is above 70, green when below 30
-            rsi_above_70 = stock_data['RSI'].apply(lambda x: x if x > 70 else None)
-            rsi_below_30 = stock_data['RSI'].apply(lambda x: x if x < 30 else None)
-
-            # Additional plot for RSI (on its own panel) with red and green shading
-            ap_rsi = [
-                mpf.make_addplot(stock_data['RSI'], panel=2, color='grey', ylabel='RSI'),
-                mpf.make_addplot(rsi_above_70, panel=2, color='red', alpha=1),  # Red fill for RSI > 70
-                mpf.make_addplot(rsi_below_30, panel=2, color='lime', alpha=1),  # Green fill for RSI < 30
-            ]
-
-            # Plot the stock data using mplfinance with the RSI and volume plots
+            # Create the plot
             fig, axes = mpf.plot(stock_data, type='candle', style=s, title='',  # Set title='' to avoid duplicate title
-                                addplot=ap_rsi, volume=True, volume_panel=1, tight_layout=True, returnfig=True)
+                                volume=True, volume_panel=1, tight_layout=True, returnfig=True)
 
-            # Reduce x-axis font size and set color to orange
+            # Set the outer figure background (margins) to black
+            fig.patch.set_facecolor('black')
+
+            # Customize x and y labels/titles to be white
             for ax in axes:
-                ax.tick_params(axis='x', labelsize=6, colors='orange')  # Set x-axis font size to 8 and color to orange
-                ax.yaxis.label.set_color('orange')  # Set y-axis label color to orange
-                ax.tick_params(axis='y', colors='orange')  # Set y-axis tick label color to orange
+                ax.tick_params(axis='x', labelsize=6, colors='white')  # Set x-axis font size to 6 and color to white
+                ax.tick_params(axis='y', labelsize=6, colors='white')  # Set y-axis tick label size and color to white
+                ax.yaxis.label.set_size(6)                             # Set y-axis label size to 6
+                ax.yaxis.label.set_color('white')                      # Set y-axis label color to white
 
-            # Manually set title font size and color to orange
-            axes[0].set_title(f"{ticker.upper()} - {timeframe} Chart", fontsize=6, color='orange')
+            # Manually set title font size and color to white
+            axes[0].set_title(f"{ticker.upper()} - {list(timeframe_options.keys())[int(timeframe) - 1]} Chart", fontsize=8, color='white')
 
-            # Get the latest closing price
-            latest_price = stock_data['Close'][-1]
+            # Get the latest closing price using .iloc to avoid FutureWarning
+            latest_price = stock_data['Close'].iloc[-1]
 
-            # Add latest price in the top-left corner of the main panel (axes[0] is the price panel) with orange text
-            axes[0].text(0.01, 0.95, f"Latest Price: ${latest_price:.2f}", transform=axes[0].transAxes,
-                        fontsize=5, color='orange', verticalalignment='top')
+            # Add latest price in the top-left corner of the main panel (axes[0] is the price panel) with white text
+            axes[0].text(0.01, 0.95, f"${latest_price:.2f}", transform=axes[0].transAxes,
+                        fontsize=7, color='orange', verticalalignment='top')
+
+            # Adjust candle width manually using matplotlib
+            for rect in axes[0].patches:
+                if isinstance(rect, Rectangle):
+                    rect.set_width(0.75)  # Adjust the width of candles (0.75 is an example value, adjust as needed)
 
             # Show the plot
-            mpf.show(block=False)
+            plt.show(block=False)
 
         except Exception as e:
             print(f"An error occurred: {e}")
 
-    # Input from user
-    ticker = input("Enter the stock ticker symbol: ").upper()
-    timeframe = input("Enter timeframe (1d, ytd, 1y, 2y, 5y, 10y): ").lower()
+    def main():
+        # Input from user for stock ticker
+        ticker = input("Enter the stock ticker symbol: ").upper()
 
-    # Validate user input for timeframe
-    if timeframe not in timeframes:
-        print(f"Invalid timeframe '{timeframe}'. Please enter one of: {', '.join(timeframes.keys())}")
-    else:
+        # Display options for timeframes
+        print(f"{BLUE}Choose period:{RESET}")
+        print(f"{RED}[1]{RESET} {BROWN}1d{RESET}")
+        print(f"{RED}[2]{RESET} {BROWN}YTD{RESET}")
+        print(f"{RED}[3]{RESET} {BROWN}1Y{RESET}")
+        print(f"{RED}[4]{RESET} {BROWN}2Y{RESET}")
+        print(f"{RED}[5]{RESET} {BROWN}5Y{RESET}")
+        print(f"{RED}[6]{RESET} {BROWN}10Y{RESET}")
+
+        # Validate and get user's choice for timeframe
+        timeframe = input("Enter your choice (1-6): ")
+
+        # Validate user input for timeframe
+        if timeframe not in timeframe_options:
+            print(f"Invalid choice '{timeframe}'. Please enter a number between 1 and 6.")
+            return
+
+        # Plot the chart with the selected timeframe
         plot_stock_chart(ticker, timeframe)
+
+    # Run the main function if this script is executed
+    if __name__ == "__main__":
+        main()
 
 
     
