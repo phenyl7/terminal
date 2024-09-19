@@ -40,20 +40,61 @@ def get_stock_data(ticker):
 
 
 def plot():
+    RED = "\033[91m"
+    BLUE = "\033[38;5;24m"
+    ORANGE = "\033[38;5;214m"
+    GREEN = "\033[38;5;22m"
+    LIGHT_GRAY = "\033[38;5;250m"
+    DARK_GRAY = "\033[38;5;235m"
+    BROWN = "\033[38;5;130m"
+    RESET = "\033[0m"
+
     import matplotlib.pyplot as plt
     import yfinance as yf
-    from datetime import datetime
+    from datetime import datetime, timedelta
 
     def plot_stock_price():
         # Specify ticker symbol
         ticker = input("Enter the stock ticker: ")
 
-        # Set the date range for YTD
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=1*365)
+        # Prompt user for time range
+        print(f"{BLUE}Choose period:{RESET}")
+        print(f"{RED}[4]{RESET} {BROWN}6m{RESET}")
+        print(f"{RED}[5]{RESET} {BROWN}YTD{RESET}")
+        print(f"{RED}[6]{RESET} {BROWN}1Y{RESET}")
+        print(f"{RED}[7]{RESET} {BROWN}3Y{RESET}")
+        print(f"{RED}[8]{RESET} {BROWN}5Y{RESET}")
+        print(f"{RED}[9]{RESET} {BROWN}10Y{RESET}")
         
+        time_range_number = input("choose: ")
+
+        # Set the date range and interval based on user input
+        end_date = datetime.now()
+        if time_range_number == '4':
+            start_date = end_date - timedelta(days=180)
+            interval = '1d'
+        elif time_range_number == '5':
+            start_date = datetime(end_date.year, 1, 1)
+            interval = '1d'
+        elif time_range_number == '6':
+            start_date = end_date - timedelta(days=365)
+            interval = '1d'
+        elif time_range_number == '7':
+            start_date = end_date - timedelta(days=3*365)
+            interval = '1d'
+        elif time_range_number == '8':
+            start_date = end_date - timedelta(days=5*365)
+            interval = '1d'
+        elif time_range_number == '9':
+            start_date = end_date - timedelta(days=10*365)
+            interval = '1d'
+        else:
+            print("Defaulting to 5 year.")
+            start_date = end_date - timedelta(days=5*365)
+            interval = '1d'
+
         # Download stock data
-        stock_data = yf.download(ticker, start=start_date, end=end_date)
+        stock_data = yf.download(ticker, start=start_date, end=end_date, interval=interval)
 
         if stock_data.empty:
             print(f"No data found for ticker: {ticker}")
@@ -66,7 +107,7 @@ def plot():
 
         # Create subplots with specific height ratios
         fig, ax1 = plt.subplots(figsize=(12, 8), nrows=2, ncols=1, sharex=True, gridspec_kw={'height_ratios': [4, 1]})
-        
+
         # Set figure background color
         fig.patch.set_facecolor('black')
 
@@ -85,7 +126,7 @@ def plot():
         y_max = stock_data['Adj Close'].max()
         ax1[0].set_ylim(y_min * 0.90, y_max * 1.10)
 
-        ax1[0].set_title(f'{ticker} 1Y', color='white')
+        ax1[0].set_title(f'{ticker} {time_range_number}', color='white')
         ax1[0].set_ylabel('Price', color='white')
         ax1[0].legend()
         ax1[0].set_facecolor('black')  # Background color of the plot
@@ -105,6 +146,7 @@ def plot():
 
     if __name__ == "__main__":
         plot_stock_price()
+
 
 
 def port():
@@ -257,19 +299,20 @@ def gm():
     import json
     import yfinance as yf
     from datetime import datetime
-    import webbrowser
+    from tabulate import tabulate
 
     # Define ANSI color codes
-    YELLOW = '\033[94m'  # Blue
+    ORANGE = "\033[38;5;130m"
     LIME_GREEN = '\033[92m'
     NEON_RED = '\033[91m'
     WHITE = '\033[97m'
+    DARK_GRAY = "\033[38;5;235m"  # Added dark gray color for table gridlines
+    BLUE = "\033[38;5;24m"  # Header color
     RESET = '\033[0m'
 
     def get_greeting():
         now = datetime.now()
         hour = now.hour
-
         if 5 <= hour < 12:
             return "Good morning!"
         elif 12 <= hour < 17:
@@ -285,16 +328,14 @@ def gm():
         stock = yf.Ticker(ticker)
         data = stock.history(period='1d', interval='1m')
         
-        # Latest price
+        # Latest price and today's data
         latest_price = data['Close'].iloc[-1] if not data.empty else None
-        
-        # Percent change since market open
         if len(data) > 1:
             opening_price = data['Open'].iloc[0]
             percent_change_today = ((latest_price - opening_price) / opening_price) * 100
         else:
             percent_change_today = None
-        
+
         return latest_price, percent_change_today
 
     def calculate_percent_change(cost_basis, current_price):
@@ -306,13 +347,11 @@ def gm():
         for ticker, info in portfolio.items():
             if ticker == "1":
                 continue
-            
             latest_price, percent_change_today = get_stock_data(ticker)
             if latest_price is not None:
                 percent_change = calculate_percent_change(info['cost_basis'], latest_price)
                 value = info['shares'] * latest_price
                 total_value += value
-                
                 performance[ticker] = {
                     'shares': info['shares'],
                     'cost_basis': info['cost_basis'],
@@ -330,7 +369,6 @@ def gm():
                     'percent_change_today': 'N/A',
                     'value': 'N/A'
                 }
-        
         return performance, total_value
 
     def colorize_percent(percent):
@@ -338,26 +376,46 @@ def gm():
             return f"{LIME_GREEN}{percent:.2f}%{RESET}" if percent >= 0 else f"{NEON_RED}{percent:.2f}%{RESET}"
         return percent
 
-    def print_performance(performance, total_value):
-        for ticker, data in performance.items():
-            print(f"{YELLOW}Ticker: {ticker.upper()}{RESET}")
-            print(f"Shares: {data['shares']}")
-            print(f"Cost Basis: ${data['cost_basis']:.2f}")
-            print(f"Current Price: ${data['current_price']:.2f}" if data['current_price'] != 'N/A' else "Current Price: N/A")
-            print(f"Δ: {colorize_percent(data['percent_change'])}" if data['percent_change'] != 'N/A' else "Percent Change: N/A")
-            print(f"1D %Δ: {colorize_percent(data['percent_change_today'])}" if data['percent_change_today'] != 'N/A' else "Percent Change Today: N/A")
-            print(f"Value: ${data['value']:.2f}" if data['value'] != 'N/A' else "Value: N/A")
-            print()
+    def color_structural_gridlines(table_string, color):
+        lines = table_string.split('\n')
+        colored_lines = []
+        for i, line in enumerate(lines):
+            if i == 0 or i == len(lines) - 1 or set(line) <= set('+-=|'):  # First, last, or separator lines
+                colored_line = color + ''.join([char if char in '+-=|' else RESET + char + color for char in line]) + RESET
+            else:
+                colored_line = color + '|' + RESET + line[1:-1] + color + '|' + RESET
+            colored_lines.append(colored_line)
+        return '\n'.join(colored_lines)
 
-        print(f"Total Portfolio Value: ${total_value:.2f}")
+    def print_performance(performance, total_value):
+        headers = [f"{BLUE}Ticker{RESET}", f"{BLUE}Shares{RESET}", f"{BLUE}Cost Basis{RESET}", f"{BLUE}Current Price{RESET}", f"{BLUE}Δ{RESET}", f"{BLUE}1D %Δ{RESET}", f"{BLUE}Value{RESET}"]
+        table_data = []
+
+        for ticker, data in performance.items():
+            row = [
+                f"{ORANGE}{ticker.upper()}{RESET}",
+                f"{ORANGE}{data['shares']}{RESET}",
+                f"{LIME_GREEN}${data['cost_basis']:.2f}{RESET}",
+                f"{LIME_GREEN}${data['current_price']:.2f}" if data['current_price'] != 'N/A' else "N/A",
+                colorize_percent(data['percent_change']) if data['percent_change'] != 'N/A' else "N/A",
+                colorize_percent(data['percent_change_today']) if data['percent_change_today'] != 'N/A' else "N/A",
+                f"{LIME_GREEN}${data['value']:.2f}" if data['value'] != 'N/A' else "N/A"
+            ]
+            table_data.append(row)
+
+        table = tabulate(table_data, headers=headers, tablefmt="grid")
+        colored_table = color_structural_gridlines(table, DARK_GRAY)
+        print(colored_table)
+        print(f"\nTotal Portfolio Value: ${total_value:.2f}")
 
     # Main function logic
-    print(get_greeting())
+    if __name__ == "__main__":
+        print(get_greeting())
+        portfolio_file = 'portfolio.json'  # Path to your portfolio.json file
+        portfolio = load_portfolio(portfolio_file)
+        performance, total_value = calculate_performance(portfolio)
+        print_performance(performance, total_value)
 
-    portfolio_file = 'portfolio.json'  # Path to your portfolio.json file
-    portfolio = load_portfolio(portfolio_file)
-    performance, total_value = calculate_performance(portfolio)
-    print_performance(performance, total_value)
 
 
 
@@ -643,19 +701,19 @@ def sc():
 
             # Reduce x-axis font size and set color to orange
             for ax in axes:
-                ax.tick_params(axis='x', labelsize=2, colors='orange')  # Set x-axis font size to 8 and color to orange
+                ax.tick_params(axis='x', labelsize=6, colors='orange')  # Set x-axis font size to 8 and color to orange
                 ax.yaxis.label.set_color('orange')  # Set y-axis label color to orange
                 ax.tick_params(axis='y', colors='orange')  # Set y-axis tick label color to orange
 
             # Manually set title font size and color to orange
-            axes[0].set_title(f"{ticker.upper()} - {timeframe} Chart", fontsize=10, color='orange')
+            axes[0].set_title(f"{ticker.upper()} - {timeframe} Chart", fontsize=6, color='orange')
 
             # Get the latest closing price
             latest_price = stock_data['Close'][-1]
 
             # Add latest price in the top-left corner of the main panel (axes[0] is the price panel) with orange text
             axes[0].text(0.01, 0.95, f"Latest Price: ${latest_price:.2f}", transform=axes[0].transAxes,
-                        fontsize=10, color='orange', verticalalignment='top')
+                        fontsize=5, color='orange', verticalalignment='top')
 
             # Show the plot
             mpf.show(block=False)
@@ -677,11 +735,14 @@ def sc():
     
 def cc():
     import yfinance as yf
+    from tabulate import tabulate
 
     # ANSI color codes
     LIME_GREEN = '\033[92m'
     NEON_RED = '\033[91m'
-    BLUE = '\033[94m'  # Blue color for commodity names
+    ORANGE = "\033[38;5;130m"  # orange color for commodity names and tickers
+    DARK_GRAY = "\033[38;5;235m"  # dark gray color for table gridlines
+    BLUE = "\033[38;5;24m"  # color for header names
     RESET = '\033[0m'
 
     # Tickers for Commodities and Cryptocurrencies
@@ -692,10 +753,10 @@ def cc():
         "QLD": "QLD",
         "NTSX": "NTSX",
         "Bitcoin": "BTC-USD",
-        "Ethereum": "ETH-USD", 
-        "10-Year Treasury Yield": "^TNX", 
-        "30-Year Treasury Yield": "^TYX", 
-        "Gold": "GC=F"   
+        "Ethereum": "ETH-USD",
+        "10-Year Treasury Yield": "^TNX",
+        "30-Year Treasury Yield": "^TYX",
+        "Gold": "GC=F"
     }
 
     def colorize_percent(percent):
@@ -703,47 +764,194 @@ def cc():
             return f"{LIME_GREEN}{percent:.2f}%{RESET}" if percent >= 0 else f"{NEON_RED}{percent:.2f}%{RESET}"
         return percent
 
-    def print_performance(performance):
-        for name, data in performance.items():
-            print(f"{BLUE}{name} ({data['ticker']}){RESET}")
-            print(f"Current Price: ${data['current_price']:.2f}" if data['current_price'] != 'N/A' else "Current Price: N/A")
-            print(f"1D %Δ: {colorize_percent(data['percent_change_today'])}" if data['percent_change_today'] != 'N/A' else "Percent Change Today: N/A")
-            print()
+    def calculate_percent_change(current_price, past_price):
+        if past_price == 0:
+            return 'N/A'
+        return ((current_price - past_price) / past_price) * 100
 
     def get_data(tickers):
-        performance = {}
+        performance = []
         for name, ticker in tickers.items():
             try:
                 stock = yf.Ticker(ticker)
-                data = stock.history(period="1d")
+                data = stock.history(period="5y")  # Fetch 5 years of data
+                
                 if not data.empty:
-                    current_price = data['Close'].iloc[0]  # Use iloc for positional indexing
-                    percent_change_today = ((data['Close'].iloc[0] - data['Open'].iloc[0]) / data['Open'].iloc[0]) * 100
+                    # Latest price and today's data
+                    current_price = data['Close'].iloc[-1]
+                    today_open_price = data['Open'].iloc[-1]
+                    percent_change_today = calculate_percent_change(current_price, today_open_price)
+                    
+                    # 1 Year data
+                    one_year_ago = data.index[-1] - pd.DateOffset(years=1)
+                    one_year_price = data.loc[data.index >= one_year_ago, 'Close'].iloc[0] if len(data.loc[data.index >= one_year_ago]) > 0 else current_price
+                    percent_change_1y = calculate_percent_change(current_price, one_year_price)
+                    
+                    # 5 Years data
+                    five_years_ago = data.index[0]
+                    five_year_price = data.loc[data.index[0], 'Close'] if len(data) > 0 else current_price
+                    percent_change_5y = calculate_percent_change(current_price, five_year_price)
                 else:
                     current_price = 'N/A'
                     percent_change_today = 'N/A'
+                    percent_change_1y = 'N/A'
+                    percent_change_5y = 'N/A'
                 
-                performance[name] = {
-                    'ticker': ticker,
-                    'current_price': current_price,
-                    'percent_change_today': percent_change_today
-                }
+                performance.append([
+                    f"{ORANGE}{name}{RESET}",
+                    f"{ORANGE}{ticker}{RESET}",
+                    f"{LIME_GREEN}${current_price:.2f}{RESET}" if isinstance(current_price, float) else f"{LIME_GREEN}{current_price}{RESET}",
+                    colorize_percent(percent_change_today) if isinstance(percent_change_today, float) else f"{LIME_GREEN}{percent_change_today}{RESET}",
+                    colorize_percent(percent_change_1y) if isinstance(percent_change_1y, float) else f"{LIME_GREEN}{percent_change_1y}{RESET}",
+                    colorize_percent(percent_change_5y) if isinstance(percent_change_5y, float) else f"{LIME_GREEN}{percent_change_5y}{RESET}"
+                ])
             except Exception as e:
-                performance[name] = {
-                    'ticker': ticker,
-                    'current_price': 'N/A',
-                    'percent_change_today': 'N/A'
-                }
+                performance.append([
+                    f"{ORANGE}{name}{RESET}",
+                    f"{ORANGE}{ticker}{RESET}",
+                    f"{LIME_GREEN}N/A{RESET}",
+                    f"{LIME_GREEN}N/A{RESET}",
+                    f"{LIME_GREEN}N/A{RESET}",
+                    f"{LIME_GREEN}N/A{RESET}"
+                ])
                 print(f"Error retrieving data for {name}: {e}")
-        
         return performance
 
-    # Get and print commodity data
+    # Get commodity data
     commodity_performance = get_data(commodity_tickers)
-    print_performance(commodity_performance)
+
+    # Print performance table with dark gray gridlines
+    headers = [f"{BLUE}Commodity{RESET}", f"{BLUE}Ticker{RESET}", f"{BLUE}Current Price{RESET}", f"{BLUE}1D %Δ{RESET}", f"{BLUE}1Y %Δ{RESET}", f"{BLUE}5Y %Δ{RESET}"]
+    table = tabulate(commodity_performance, headers=headers, tablefmt="grid")
+
+    # Function to color only the structural gridlines
+    def color_structural_gridlines(table_string, color):
+        lines = table_string.split('\n')
+        colored_lines = []
+        for i, line in enumerate(lines):
+            if i == 0 or i == len(lines) - 1 or set(line) <= set('+-=|'):  # First, last, or separator lines
+                colored_line = color + ''.join([char if char in '+-=|' else RESET + char + color for char in line]) + RESET
+            else:
+                colored_line = color + '|' + RESET + line[1:-1] + color + '|' + RESET
+            colored_lines.append(colored_line)
+        return '\n'.join(colored_lines)
+
+    # Apply dark gray color to structural gridlines
+    colored_table = color_structural_gridlines(table, DARK_GRAY)
+
+    print(colored_table)
+
+
+def wl():
+    import yfinance as yf
+    from tabulate import tabulate
+
+    # ANSI color codes
+    LIME_GREEN = '\033[92m'
+    NEON_RED = '\033[91m'
+    ORANGE = "\033[38;5;130m"  # orange color for commodity names and tickers
+    DARK_GRAY = "\033[38;5;235m"  # dark gray color for table gridlines
+    BLUE = "\033[38;5;24m"  # color for header names
+    RESET = '\033[0m'
+
+    # Tickers for Commodities and Cryptocurrencies
+    commodity_tickers = {
+        "Interactive Brokers": "IBKR",
+        "Zoom Video Communications": "ZM",
+        "Amazon.com": "AMZN",
+        "NVIDIA": "NVDA",
+        "Block": "SQ",
+        "Rocket Lab USA": "RKLB",
+        "Super Micro Computer": "SMCI"
+    }
+
+    def colorize_percent(percent):
+        if isinstance(percent, (int, float)):
+            return f"{LIME_GREEN}{percent:.2f}%{RESET}" if percent >= 0 else f"{NEON_RED}{percent:.2f}%{RESET}"
+        return percent
+
+    def calculate_percent_change(current_price, past_price):
+        if past_price == 0:
+            return 'N/A'
+        return ((current_price - past_price) / past_price) * 100
+
+    def get_data(tickers):
+        performance = []
+        for name, ticker in tickers.items():
+            try:
+                stock = yf.Ticker(ticker)
+                data = stock.history(period="5y")  # Fetch 5 years of data
+                
+                if not data.empty:
+                    # Latest price and today's data
+                    current_price = data['Close'].iloc[-1]
+                    today_open_price = data['Open'].iloc[-1]
+                    percent_change_today = calculate_percent_change(current_price, today_open_price)
+                    
+                    # 1 Year data
+                    one_year_ago = data.index[-1] - pd.DateOffset(years=1)
+                    one_year_price = data.loc[data.index >= one_year_ago, 'Close'].iloc[0] if len(data.loc[data.index >= one_year_ago]) > 0 else current_price
+                    percent_change_1y = calculate_percent_change(current_price, one_year_price)
+                    
+                    # 5 Years data
+                    five_years_ago = data.index[0]
+                    five_year_price = data.loc[data.index[0], 'Close'] if len(data) > 0 else current_price
+                    percent_change_5y = calculate_percent_change(current_price, five_year_price)
+                else:
+                    current_price = 'N/A'
+                    percent_change_today = 'N/A'
+                    percent_change_1y = 'N/A'
+                    percent_change_5y = 'N/A'
+                
+                performance.append([
+                    f"{ORANGE}{name}{RESET}",
+                    f"{ORANGE}{ticker}{RESET}",
+                    f"{LIME_GREEN}${current_price:.2f}{RESET}" if isinstance(current_price, float) else f"{LIME_GREEN}{current_price}{RESET}",
+                    colorize_percent(percent_change_today) if isinstance(percent_change_today, float) else f"{LIME_GREEN}{percent_change_today}{RESET}",
+                    colorize_percent(percent_change_1y) if isinstance(percent_change_1y, float) else f"{LIME_GREEN}{percent_change_1y}{RESET}",
+                    colorize_percent(percent_change_5y) if isinstance(percent_change_5y, float) else f"{LIME_GREEN}{percent_change_5y}{RESET}"
+                ])
+            except Exception as e:
+                performance.append([
+                    f"{ORANGE}{name}{RESET}",
+                    f"{ORANGE}{ticker}{RESET}",
+                    f"{LIME_GREEN}N/A{RESET}",
+                    f"{LIME_GREEN}N/A{RESET}",
+                    f"{LIME_GREEN}N/A{RESET}",
+                    f"{LIME_GREEN}N/A{RESET}"
+                ])
+                print(f"Error retrieving data for {name}: {e}")
+        return performance
+
+    # Get commodity data
+    commodity_performance = get_data(commodity_tickers)
+
+    # Print performance table with dark gray gridlines
+    headers = [f"{BLUE}Commodity{RESET}", f"{BLUE}Ticker{RESET}", f"{BLUE}Current Price{RESET}", f"{BLUE}1D %Δ{RESET}", f"{BLUE}1Y %Δ{RESET}", f"{BLUE}5Y %Δ{RESET}"]
+    table = tabulate(commodity_performance, headers=headers, tablefmt="grid")
+
+    # Function to color only the structural gridlines
+    def color_structural_gridlines(table_string, color):
+        lines = table_string.split('\n')
+        colored_lines = []
+        for i, line in enumerate(lines):
+            if i == 0 or i == len(lines) - 1 or set(line) <= set('+-=|'):  # First, last, or separator lines
+                colored_line = color + ''.join([char if char in '+-=|' else RESET + char + color for char in line]) + RESET
+            else:
+                colored_line = color + '|' + RESET + line[1:-1] + color + '|' + RESET
+            colored_lines.append(colored_line)
+        return '\n'.join(colored_lines)
+
+    # Apply dark gray color to structural gridlines
+    colored_table = color_structural_gridlines(table, DARK_GRAY)
+
+    print(colored_table)
+
+
 
 
 def des():
+    ORANGE = "\033[38;5;130m"
     import yfinance as yf
     from colorama import Fore, Style, init
     import textwrap
@@ -752,15 +960,12 @@ def des():
     # Initialize colorama
     init(autoreset=True)
 
-    # Define color
-    blue = Fore.BLUE
-
     def print_colored_percentage(change, label):
         if change >= 0:
             color = Fore.GREEN
         else:
             color = Fore.RED
-        print(f"{blue}{label}: {color}{change:.2f}%{Style.RESET_ALL}")
+        print(f"{ORANGE}{label}: {color}{change:.2f}%{Style.RESET_ALL}")
 
     def get_stock_info(ticker):
         stock = yf.Ticker(ticker)
@@ -804,9 +1009,9 @@ def des():
 
         # Print stock info
         description = info.get('longBusinessSummary', 'Description not available.')
-        print(f"\n{blue}Description:{Style.RESET_ALL}\n{textwrap.fill(description, width=80)}")
-        print(f"{blue}Price:{Style.RESET_ALL} ${price:.2f}")
-        print(f"{blue}Market Cap:{Style.RESET_ALL} ${market_cap / 1e9:.2f} Billion")
+        print(f"\n{ORANGE}Description:{Style.RESET_ALL}\n{textwrap.fill(description, width=80)}")
+        print(f"{ORANGE}Price:{Style.RESET_ALL} ${price:.2f}")
+        print(f"{ORANGE}Market Cap:{Style.RESET_ALL} ${market_cap / 1e9:.2f} Billion")
 
         # Print percent changes
         print_colored_percentage(one_day_change, "1D Change")
@@ -1197,6 +1402,7 @@ def dcf():
         calculate_intrinsic_value()
 
 def fs():
+    ORANGE = "\033[38;5;130m"
     import requests
     import pandas as pd
     from bs4 import BeautifulSoup
@@ -1255,7 +1461,7 @@ def fs():
                 rest_cols = [f"{str(item):<{max_col_width}}" for item in row.iloc[1:]]
                 
                 # Apply color formatting
-                first_col_colored = f"{Fore.BLUE}{first_col}{Style.RESET_ALL}"
+                first_col_colored = f"{ORANGE}{first_col}{Style.RESET_ALL}"
                 rest_cols_colored = [format_value(col) for col in rest_cols]
                 
                 print(f"{first_col_colored} " + " ".join(rest_cols_colored))
@@ -1366,8 +1572,8 @@ def fund():
     import webbrowser
 
     # ANSI escape codes for color
-    GREEN = "\033[38;5;214m"      #orange
-    BLUE = "\033[94m"
+    BLUE = "\033[38;5;24m"
+    ORANGE = "\033[38;5;130m"
     RESET = "\033[0m"
 
     def main():
@@ -1443,7 +1649,7 @@ def fund():
         # Display the list of hedge funds with numbers
         print("Select one or more hedge funds by entering the corresponding numbers (comma-separated), or type 'all' to open all:")
         for number, fund in hedge_funds.items():
-            print(f"{GREEN}{number}. {BLUE}{fund}{RESET}")
+            print(f"{BLUE}{number}. {ORANGE}{fund}{RESET}")
 
         # Get user input
         choice = input("Enter your choice: ").strip().lower()
@@ -1556,12 +1762,25 @@ def sec():
 
 def main():
     while True:
-        print("\nMenu:")
-        print("[ch][news][cc][gm][des][wl]")
-        print("[sa][fv][hol][ins][roic][fs]")
-        print("[port][10k][10q][op][sim][ovs]")
-        print("[vic][gain][val][dcf][sc][cl]")
-        print("[fund][pch][pn][sec][screen]")
+        RED = "\033[91m"
+        BLUE = "\033[38;5;24m"
+        ORANGE = "\033[38;5;214m"
+        GREEN = "\033[38;5;22m"
+        LIGHT_GRAY = "\033[38;5;250m"
+        DARK_GRAY = "\033[38;5;235m"
+        BROWN = "\033[38;5;130m"
+        RESET = "\033[0m"
+
+        print(f"\n{LIGHT_GRAY}Terminal:{RESET}")
+        print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
+        print(f"{BLUE}pulse:{RESET} {BROWN}[news] [cc] [gm] [wl] [wln] [pn] [cl] [gain]{RESET}")
+        print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
+        print(f"{BLUE}read:{RESET} {BROWN}[sa] [vic] [wsj] [nyt] [brns] [sema] [ft]{RESET}")
+        print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
+        print(f"{BLUE}research:{RESET} {BROWN}[screen] [fund] [sec] [10k] [10q] [fs] [roic] [ins] [hol]{RESET}")
+        print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
+        print(f"{BLUE}tools:{RESET} {BROWN}[dcf] [val] [pch] [sc] [ovs] [sim] [op] [port] [des] [ch] [note]{RESET}")
+        print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
 
         choice = input("Choose an option: ").strip()
         
@@ -1623,7 +1842,7 @@ def main():
             port()
         elif choice == 'des':
             des()
-        elif choice == 'wl':
+        elif choice == 'wln':
             import webbrowser
             webbrowser.open("https://finviz.com/portfolio.ashx?pid=1909245")
         elif choice == 'op':
@@ -1650,6 +1869,8 @@ def main():
             fund()
         elif choice == 'pch':
             portchart()
+        elif choice == 'wl':
+            wl()
         elif choice == 'screen':
             import webbrowser
             webbrowser.open("https://finviz.com/screener.ashx")
@@ -1658,6 +1879,24 @@ def main():
             webbrowser.open("https://finviz.com/portfolio.ashx?v=1&pid=1911250")
         elif choice == 'sec':
             sec()
+        elif choice == 'wsj':
+            import webbrowser
+            webbrowser.open("https://www.wsj.com/")
+        elif choice == 'nyt':
+            import webbrowser
+            webbrowser.open("https://www.nytimes.com/")
+        elif choice == 'brns':
+            import webbrowser
+            webbrowser.open("https://www.barrons.com/")
+        elif choice == 'sema':
+            import webbrowser
+            webbrowser.open("https://www.semafor.com/")
+        elif choice == 'ft':
+            import webbrowser
+            webbrowser.open("https://www.ft.com/")
+        elif choice == 'note':
+            import webbrowser
+            webbrowser.open("https://www.rapidtables.com/tools/notepad.html")
         elif choice == 'q':
             break
         else:
