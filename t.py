@@ -303,13 +303,13 @@ def gm():
 
     # Define ANSI color codes
     ORANGE = "\033[38;5;130m"
-    LIME_GREEN = '\033[92m'
+    LIME_GREEN = '\033[38;5;22m'
     NEON_RED = '\033[91m'
     WHITE = '\033[97m'
     GRAY = "\033[38;5;250m"
-    DARK_GRAY = "\033[38;5;235m"  # Added dark gray color for table gridlines
+    DARK_GRAY = "\033[30m"  # Added dark gray color for table gridlines
     BLUE = "\033[38;5;24m"  # Header color
-    RESET = '\033[38;5;235m'
+    RESET = '\033[30m'
 
     def get_greeting():
         now = datetime.now()
@@ -750,13 +750,13 @@ def cc():
     from tabulate import tabulate
 
     # ANSI color codes
-    LIME_GREEN = '\033[92m'
+    LIME_GREEN = '\033[38;5;22m'
     NEON_RED = '\033[91m'
     ORANGE = "\033[38;5;130m"  # orange color for commodity names and tickers
-    DARK_GRAY = "\033[38;5;235m"  # dark gray color for table gridlines
+    DARK_GRAY = "\033[30m"  # dark gray color for table gridlines
     GRAY = "\033[38;5;250m"
     BLUE = "\033[38;5;24m"  # color for header names
-    RESET = '\033[38;5;235m'
+    RESET = '\033[30m'
 
     # Tickers for Commodities and Cryptocurrencies
     commodity_tickers = {
@@ -860,13 +860,13 @@ def wl():
     from tabulate import tabulate
 
     # ANSI color codes
-    LIME_GREEN = '\033[92m'
+    LIME_GREEN = '\033[38;5;22m'
     NEON_RED = '\033[91m'
     GRAY = "\033[38;5;250m"
     ORANGE = "\033[38;5;130m"  # orange color for commodity names and tickers
-    DARK_GRAY = "\033[38;5;235m"  # dark gray color for table gridlines
+    DARK_GRAY = "\033[30m"  # dark gray color for table gridlines
     BLUE = "\033[38;5;24m"  # color for header names
-    RESET = '\033[38;5;235m'
+    RESET = '\033[30m'
 
     # Tickers for Commodities and Cryptocurrencies
     commodity_tickers = {
@@ -1991,11 +1991,9 @@ def sn():
 
             print(f"{RED}[{item_number}]{RESET}", end=" ")
             if 'title' in item:
-                #print(f"{BROWN}Title:{RESET}")
                 print(f"{RED}{wrap_text(item['title'])}{RESET}")
                 seen_titles.add(item['title'])
             if 'summary' in item:
-                #print(f"{RED}-------------------------------------------------------------{RESET}")
                 print(f"{BROWN}{wrap_text(item['summary'])}{RESET}")
                 seen_summaries.add(item['summary'])
             if 'timestamp' in item:
@@ -2005,7 +2003,6 @@ def sn():
             if 'related_symbols' in item:
                 print(f"{BROWN}Related symbols:{RESET}")
                 print(f"{BROWN}{wrap_text(', '.join(item['related_symbols']))}{RESET}")
-            #print(f"{BROWN}{'-' * 80}{RESET}")  # Print a line of dashes as a separator
             print(" ")
             print(" ")
 
@@ -2035,6 +2032,10 @@ def sn():
                 print(f"{BROWN}Exiting the program. Goodbye!{RESET}")
                 break
             news_items = get_news_text(ticker)
+            
+            # Reverse the order of news items
+            news_items.reverse()
+            
             numbered_items = print_news_items(news_items)
             if numbered_items:
                 open_url_in_browser(numbered_items)
@@ -2045,11 +2046,11 @@ def sn():
 
 
 
+
 def mn():
     import requests
     from bs4 import BeautifulSoup
     import textwrap
-    import webbrowser
 
     # Color codes
     RED = "\033[91m"
@@ -2061,75 +2062,63 @@ def mn():
         return '\n'.join(textwrap.wrap(text, width=width))
 
     def get_news_text():
-        urls = [
-            "https://stockanalysis.com/news/",
-            "https://stockanalysis.com/news/all-stocks/"
-        ]
+        url = "https://stockanalysis.com/news/all-stocks/"
+        response = requests.get(url)
         news_items = []
-
-        for url in urls:
-            response = requests.get(url)
-
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
-                news_divs = soup.find_all('div', class_=['flex flex-col', 'gap-4'])
-
-                if not news_divs:
-                    print(f"{BROWN}No news items found at {url}.{RESET}")
-                    continue
-
-                for item in news_divs:
-                    news_item = {}
-                    
-                    # Extract title and URL
-                    title = item.find('h3', class_='mb-2')
-                    if title:
-                        title_link = title.find('a')
-                        if title_link:
-                            news_item['title'] = title_link.text.strip()
-                            news_item['url'] = title_link.get('href')
-                        else:
-                            news_item['title'] = title.text.strip()
-                    
-                    # Extract summary
-                    summary = item.find('p', class_='overflow-auto')
-                    if summary:
-                        news_item['summary'] = summary.text.strip()
-                    
-                    # Extract timestamp and source
-                    meta_div = item.find('div', class_='mt-1 text-sm text-faded')
-                    if meta_div:
-                        meta_text = meta_div.text.strip()
-                        news_item['timestamp'] = meta_div.get('title', meta_text)
-                        news_item['source'] = meta_text.split(' - ', 1)[-1] if ' - ' in meta_text else "N/A"
-                    
-                    # Extract related symbols if present
-                    symbols_div = item.find('div', class_='mt-1.5 inline text-light')
-                    if symbols_div:
-                        symbols = [a.text for a in symbols_div.find_all('a', class_='ticker')]
-                        if symbols:
-                            news_item['related_symbols'] = symbols
-                    
-                    if news_item:
-                        news_items.append(news_item)
-            else:
-                print(f"{BROWN}Failed to retrieve the webpage. Status code: {response.status_code}{RESET}")
-
+        
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            news_divs = soup.find_all('div', class_=['flex flex-col', 'gap-4'])
+            
+            if not news_divs:
+                print(f"{BROWN}No news items found at {url}.{RESET}")
+                return news_items
+            
+            for item in news_divs:
+                news_item = {}
+                
+                # Extract title
+                title = item.find('h3', class_='mb-2')
+                if title:
+                    news_item['title'] = title.text.strip()
+                
+                # Extract summary
+                summary = item.find('p', class_='overflow-auto')
+                if summary:
+                    news_item['summary'] = summary.text.strip()
+                
+                # Extract timestamp and source
+                meta_div = item.find('div', class_='mt-1 text-sm text-faded')
+                if meta_div:
+                    meta_text = meta_div.text.strip()
+                    news_item['timestamp'] = meta_div.get('title', meta_text)
+                    news_item['source'] = meta_text.split(' - ', 1)[-1] if ' - ' in meta_text else "N/A"
+                
+                # Extract related symbols if present
+                symbols_div = item.find('div', class_='mt-1.5 inline text-light')
+                if symbols_div:
+                    symbols = [a.text for a in symbols_div.find_all('a', class_='ticker')]
+                    if symbols:
+                        news_item['related_symbols'] = symbols
+                
+                if news_item:
+                    news_items.append(news_item)
+        else:
+            print(f"{BROWN}Failed to retrieve the webpage. Status code: {response.status_code}{RESET}")
+        
         return news_items
 
     def print_news_items(news_items):
         seen_titles = set()
         seen_summaries = set()
-        numbered_items = {}
-        item_number = 1
-
+        
         for item in news_items:
             # Check if we've seen this title or summary before
             if ('title' in item and item['title'] in seen_titles) or \
             ('summary' in item and item['summary'] in seen_summaries):
                 continue  # Skip this item if we've seen it before
 
-            print(f"{RED}[{item_number}]{RESET}", end=" ")
+            print(f"{RED}{RESET}", end="")
             if 'title' in item:
                 print(f"{RED}{wrap_text(item['title'])}{RESET}")
                 seen_titles.add(item['title'])
@@ -2144,35 +2133,150 @@ def mn():
                 print(f"{BROWN}Related symbols:{RESET}")
                 print(f"{BROWN}{wrap_text(', '.join(item['related_symbols']))}{RESET}")
             print(" ")
-            print(" ")
-
-            if 'url' in item:
-                numbered_items[item_number] = item['url']
-            item_number += 1
-
-        return numbered_items
-
-    def open_url_in_browser(numbered_items):
-        while True:
-            try:
-                selection = int(input(f"{BROWN}Enter the number of the news item to open its URL (or 0 to exit): {RESET}"))
-                if selection == 0:
-                    break
-                if selection in numbered_items:
-                    webbrowser.open(numbered_items[selection])
-                else:
-                    print(f"{BROWN}Invalid number. Please try again.{RESET}")
-            except ValueError:
-                print(f"{BROWN}Please enter a valid number.{RESET}")
 
     def main():
         news_items = get_news_text()
-        numbered_items = print_news_items(news_items)
-        if numbered_items:
-            open_url_in_browser(numbered_items)
+        
+        # Reverse the order of news items
+        news_items.reverse()
+        
+        print_news_items(news_items)
 
     if __name__ == "__main__":
         main()
+
+
+def mnl(): 
+    import os  # Importing os for clearing the terminal
+    import requests
+    from bs4 import BeautifulSoup
+    import textwrap
+    import time
+    import sys
+    import select  # Importing select module for input handling
+
+    # Color codes
+    RED = "\033[91m"
+    BROWN = "\033[38;5;130m"
+    RESET = "\033[0m"  # Reset to default color
+
+    def wrap_text(text, width=80):
+        """Wrap text to specified width, ensuring words are not cut off."""
+        return '\n'.join(textwrap.wrap(text, width=width))
+
+    def clear_terminal():
+        """Clear the terminal screen."""
+        os.system('cls' if os.name == 'nt' else 'clear')
+
+    def get_news_text():
+        url = "https://stockanalysis.com/news/all-stocks/"
+        response = requests.get(url)
+        news_items = []
+        
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            news_divs = soup.find_all('div', class_=['flex flex-col', 'gap-4'])
+            
+            if not news_divs:
+                print(f"{BROWN}No news items found at {url}.{RESET}")
+                return news_items
+            
+            for item in news_divs:
+                news_item = {}
+                
+                # Extract title and URL
+                title = item.find('h3', class_='mb-2')
+                if title:
+                    title_link = title.find('a')
+                    if title_link:
+                        news_item['title'] = title_link.text.strip()
+                    else:
+                        news_item['title'] = title.text.strip()
+                
+                # Extract summary
+                summary = item.find('p', class_='overflow-auto')
+                if summary:
+                    news_item['summary'] = summary.text.strip()
+                
+                # Extract timestamp and source
+                meta_div = item.find('div', class_='mt-1 text-sm text-faded')
+                if meta_div:
+                    meta_text = meta_div.text.strip()
+                    news_item['timestamp'] = meta_div.get('title', meta_text)
+                    news_item['source'] = meta_text.split(' - ', 1)[-1] if ' - ' in meta_text else "N/A"
+                
+                # Extract related symbols if present
+                symbols_div = item.find('div', class_='mt-1.5 inline text-light')
+                if symbols_div:
+                    symbols = [a.text for a in symbols_div.find_all('a', class_='ticker')]
+                    if symbols:
+                        news_item['related_symbols'] = symbols
+                
+                if news_item:
+                    news_items.append(news_item)
+        else:
+            print(f"{BROWN}Failed to retrieve the webpage. Status code: {response.status_code}{RESET}")
+        
+        return news_items
+
+    def print_news_items(news_items):
+        seen_titles = set()
+        seen_summaries = set()
+
+        for item in news_items:
+            # Check if we've seen this title or summary before
+            if ('title' in item and item['title'] in seen_titles) or \
+            ('summary' in item and item['summary'] in seen_summaries):
+                continue  # Skip this item if we've seen it before
+
+            if 'title' in item:
+                print(f"{RED}{wrap_text(item['title'])}{RESET}")
+                seen_titles.add(item['title'])
+            if 'summary' in item:
+                print(f"{BROWN}{wrap_text(item['summary'])}{RESET}")
+                seen_summaries.add(item['summary'])
+            if 'timestamp' in item:
+                print(f"{BROWN}Timestamp: {item['timestamp']}{RESET}")
+            if 'source' in item:
+                print(f"{BROWN}Source: {item['source']}{RESET}")
+            if 'related_symbols' in item:
+                print(f"{BROWN}Related symbols:{RESET}")
+                print(f"{BROWN}{wrap_text(', '.join(item['related_symbols']))}{RESET}")
+            print("\n")
+
+    def countdown(seconds):
+        """Display a countdown for the next refresh."""
+        for i in range(seconds, 0, -1):
+            sys.stdout.write(f"\r{BROWN}Next refresh in {i} seconds... Press 'q' to quit.{RESET}")
+            sys.stdout.flush()
+            time.sleep(1)
+            
+            # Check for quit command
+            if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+                input_char = sys.stdin.read(1)
+                if input_char.lower() == 'q':
+                    print(f"\n{BROWN}Exiting the program. Goodbye!{RESET}")
+                    sys.exit(0)
+                    
+        sys.stdout.write("\r")  # Clears the line after countdown finishes
+
+    def main():
+        while True:
+            clear_terminal()  # Clear the terminal at the start of each loop
+            news_items = get_news_text()
+            
+            # Reverse the order of news items
+            news_items.reverse()
+            
+            print_news_items(news_items)
+            
+            # Countdown before next refresh (30 seconds)
+            countdown(30)
+
+    if __name__ == "__main__":
+        main()
+
+
 
 def ipo():
     import requests
@@ -2385,7 +2489,7 @@ def main():
         #print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
         print(f"{LIGHT_GRAY}pulse:{RESET} {BROWN}[news] [cc] [gm] [wl] [wln] [pn] [cl] [gain] [ipo] [rtc]{RESET}")
         #print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
-        print(f"{LIGHT_GRAY}read:{RESET} {BROWN}[sa] [vic] [wsj] [nyt] [brns] [sema] [ft] [sn] [mn]{RESET}")
+        print(f"{LIGHT_GRAY}read:{RESET} {BROWN}[sa] [vic] [wsj] [nyt] [brns] [sema] [ft] [sn] [mn] [mnl]{RESET}")
         #print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
         print(f"{LIGHT_GRAY}research:{RESET} {BROWN}[screen] [fund] [sec] [10k] [10q] [fs] [sta] [roic] [ins] [hol]{RESET}")
         #print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
@@ -2517,6 +2621,8 @@ def main():
             sn()
         elif choice == 'mn':
             mn()
+        elif choice == 'mnl':
+            mnl()
         elif choice == 'ipo':
             ipo()
         elif choice == 'rtc':
