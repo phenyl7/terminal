@@ -2271,7 +2271,7 @@ def mnl():
             print_news_items(news_items)
             
             # Countdown before next refresh (30 seconds)
-            countdown(30)
+            countdown(300)
 
     if __name__ == "__main__":
         main()
