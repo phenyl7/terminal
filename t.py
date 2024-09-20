@@ -2298,6 +2298,76 @@ def ipo():
     if __name__ == "__main__":
         main()
 
+def rtc():
+    import yfinance as yf
+    import matplotlib.pyplot as plt
+    import matplotlib.animation as animation
+    import mplfinance as mpf
+    import pandas as pd
+
+    # Define the function to fetch and update data
+    def fetch_data(ticker):
+        df = yf.download(tickers=ticker, period='1d', interval='1m')
+        return df
+
+    # Define the function to update the plot
+    def update_plot(frame):
+        df = fetch_data(ticker)
+
+        # Clear the existing chart without affecting the text
+        ax[0].clear()
+
+        # Plot the updated candlestick chart
+        mpf.plot(df, type='candle', ax=ax[0], style=custom_style, volume=False, show_nontrading=False)
+
+        # Update the latest price in the top left
+        latest_price = df['Close'].iloc[-1]
+        ax[0].text(0.05, 0.95, f'   ${latest_price:.2f}', transform=ax[0].transAxes,
+                fontsize=10, verticalalignment='top', color='orange')
+
+        # Set title and labels
+        ax[0].set_title(f'{ticker} Live Price', color='grey', fontsize = 10)
+        ax[0].set_xlabel('Time', color='grey')
+        ax[0].set_ylabel('Price ($)', color='grey')
+
+        # Set smaller font size for x-axis and y-axis labels
+        for label in ax[0].get_xticklabels():
+            label.set_fontsize(8)
+            label.set_color('grey')
+        for label in ax[0].get_yticklabels():
+            label.set_fontsize(8)
+            label.set_color('grey')
+
+        # Set axis grid, colors, and style
+        ax[0].grid(True, color='grey', linestyle='--')
+        ax[0].tick_params(axis='both', colors='grey')
+
+    # Get ticker input
+    ticker = input("Enter a stock ticker symbol: ").upper()
+
+    # Define custom style with lime up candles and red down candles
+    custom_market_colors = mpf.make_marketcolors(
+        up='lime', down='red', 
+        edge='inherit', wick='inherit', volume='in'
+    )
+    custom_style = mpf.make_mpf_style(
+        base_mpl_style='dark_background', marketcolors=custom_market_colors
+    )
+
+    # Set up the figure and axis
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6), facecolor='black', subplot_kw={'facecolor':'black'})
+    ax = [ax]  # Wrap the ax in a list for `mpf.plot` compatibility
+
+    # Create the animation
+    ani = animation.FuncAnimation(fig, update_plot, interval=1000, cache_frame_data=False)
+
+    # Set up plot appearance
+    fig.patch.set_facecolor('black')  # Set figure background color
+    ax[0].set_facecolor('black')      # Set axis background color
+
+    # Display the chart
+    plt.show()
+
 
 
 def main():
@@ -2313,7 +2383,7 @@ def main():
 
         print(f"\n{RED}Terminal{RESET}")
         #print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
-        print(f"{LIGHT_GRAY}pulse:{RESET} {BROWN}[news] [cc] [gm] [wl] [wln] [pn] [cl] [gain] [ipo]{RESET}")
+        print(f"{LIGHT_GRAY}pulse:{RESET} {BROWN}[news] [cc] [gm] [wl] [wln] [pn] [cl] [gain] [ipo] [rtc]{RESET}")
         #print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
         print(f"{LIGHT_GRAY}read:{RESET} {BROWN}[sa] [vic] [wsj] [nyt] [brns] [sema] [ft] [sn] [mn]{RESET}")
         #print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
@@ -2449,6 +2519,8 @@ def main():
             mn()
         elif choice == 'ipo':
             ipo()
+        elif choice == 'rtc':
+            rtc()
         elif choice == 'q':
             break
         else:
