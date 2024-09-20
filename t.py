@@ -309,7 +309,7 @@ def gm():
     GRAY = "\033[38;5;250m"
     DARK_GRAY = "\033[38;5;235m"  # Added dark gray color for table gridlines
     BLUE = "\033[38;5;24m"  # Header color
-    RESET = '\033[0m'
+    RESET = '\033[38;5;235m'
 
     def get_greeting():
         now = datetime.now()
@@ -407,7 +407,7 @@ def gm():
         table = tabulate(table_data, headers=headers, tablefmt="grid")
         colored_table = color_structural_gridlines(table, DARK_GRAY)
         print(colored_table)
-        print(f"\nTotal Portfolio Value: ${total_value:.2f}")
+        print(f"\n {GRAY}Total Portfolio Value: ${total_value:.2f}")
 
     # Main function logic
     if __name__ == "__main__":
@@ -756,7 +756,7 @@ def cc():
     DARK_GRAY = "\033[38;5;235m"  # dark gray color for table gridlines
     GRAY = "\033[38;5;250m"
     BLUE = "\033[38;5;24m"  # color for header names
-    RESET = '\033[0m'
+    RESET = '\033[38;5;235m'
 
     # Tickers for Commodities and Cryptocurrencies
     commodity_tickers = {
@@ -866,7 +866,7 @@ def wl():
     ORANGE = "\033[38;5;130m"  # orange color for commodity names and tickers
     DARK_GRAY = "\033[38;5;235m"  # dark gray color for table gridlines
     BLUE = "\033[38;5;24m"  # color for header names
-    RESET = '\033[0m'
+    RESET = '\033[38;5;235m'
 
     # Tickers for Commodities and Cryptocurrencies
     commodity_tickers = {
@@ -1587,8 +1587,11 @@ def fund():
 
     # ANSI escape codes for color
     BLUE = "\033[38;5;24m"
+    GRAY = "\033[38;5;250m"
+    RED = "\033[91m"
     ORANGE = "\033[38;5;130m"
-    RESET = "\033[0m"
+    RESET = "\033[38;5;250m"
+    
 
     def main():
         # List of hedge funds and their corresponding links
@@ -1663,7 +1666,7 @@ def fund():
         # Display the list of hedge funds with numbers
         print("Select one or more hedge funds by entering the corresponding numbers (comma-separated), or type 'all' to open all:")
         for number, fund in hedge_funds.items():
-            print(f"{BLUE}{number}. {ORANGE}{fund}{RESET}")
+            print(f"{RED}[{number}]{RESET}{ORANGE}{fund}{RESET}")
 
         # Get user input
         choice = input("Enter your choice: ").strip().lower()
