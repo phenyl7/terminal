@@ -306,6 +306,7 @@ def gm():
     LIME_GREEN = '\033[92m'
     NEON_RED = '\033[91m'
     WHITE = '\033[97m'
+    GRAY = "\033[38;5;250m"
     DARK_GRAY = "\033[38;5;235m"  # Added dark gray color for table gridlines
     BLUE = "\033[38;5;24m"  # Header color
     RESET = '\033[0m'
@@ -388,7 +389,7 @@ def gm():
         return '\n'.join(colored_lines)
 
     def print_performance(performance, total_value):
-        headers = [f"{BLUE}Ticker{RESET}", f"{BLUE}Shares{RESET}", f"{BLUE}Cost Basis{RESET}", f"{BLUE}Current Price{RESET}", f"{BLUE}Δ{RESET}", f"{BLUE}1D %Δ{RESET}", f"{BLUE}Value{RESET}"]
+        headers = [f"{GRAY}Ticker{RESET}", f"{GRAY}Shares{RESET}", f"{GRAY}Cost Basis{RESET}", f"{GRAY}Current Price{RESET}", f"{GRAY}Δ{RESET}", f"{GRAY}1D %Δ{RESET}", f"{GRAY}Value{RESET}"]
         table_data = []
 
         for ticker, data in performance.items():
@@ -753,6 +754,7 @@ def cc():
     NEON_RED = '\033[91m'
     ORANGE = "\033[38;5;130m"  # orange color for commodity names and tickers
     DARK_GRAY = "\033[38;5;235m"  # dark gray color for table gridlines
+    GRAY = "\033[38;5;250m"
     BLUE = "\033[38;5;24m"  # color for header names
     RESET = '\033[0m'
 
@@ -832,7 +834,7 @@ def cc():
     commodity_performance = get_data(commodity_tickers)
 
     # Print performance table with dark gray gridlines
-    headers = [f"{BLUE}Commodity{RESET}", f"{BLUE}Ticker{RESET}", f"{BLUE}Current Price{RESET}", f"{BLUE}1D %Δ{RESET}", f"{BLUE}1Y %Δ{RESET}", f"{BLUE}5Y %Δ{RESET}"]
+    headers = [f"{GRAY}Commodity{RESET}", f"{GRAY}Ticker{RESET}", f"{GRAY}Current Price{RESET}", f"{GRAY}1D %Δ{RESET}", f"{GRAY}1Y %Δ{RESET}", f"{GRAY}5Y %Δ{RESET}"]
     table = tabulate(commodity_performance, headers=headers, tablefmt="grid")
 
     # Function to color only the structural gridlines
@@ -860,6 +862,7 @@ def wl():
     # ANSI color codes
     LIME_GREEN = '\033[92m'
     NEON_RED = '\033[91m'
+    GRAY = "\033[38;5;250m"
     ORANGE = "\033[38;5;130m"  # orange color for commodity names and tickers
     DARK_GRAY = "\033[38;5;235m"  # dark gray color for table gridlines
     BLUE = "\033[38;5;24m"  # color for header names
@@ -938,7 +941,7 @@ def wl():
     commodity_performance = get_data(commodity_tickers)
 
     # Print performance table with dark gray gridlines
-    headers = [f"{BLUE}Commodity{RESET}", f"{BLUE}Ticker{RESET}", f"{BLUE}Current Price{RESET}", f"{BLUE}1D %Δ{RESET}", f"{BLUE}1Y %Δ{RESET}", f"{BLUE}5Y %Δ{RESET}"]
+    headers = [f"{GRAY}Company{RESET}", f"{GRAY}Ticker{RESET}", f"{GRAY}Current Price{RESET}", f"{GRAY}1D %Δ{RESET}", f"{GRAY}1Y %Δ{RESET}", f"{GRAY}5Y %Δ{RESET}"]
     table = tabulate(commodity_performance, headers=headers, tablefmt="grid")
 
     # Function to color only the structural gridlines
@@ -2294,11 +2297,6 @@ def ipo():
 
 
 
-
-
-
-
-
 def main():
     while True:
         RED = "\033[91m"
@@ -2310,16 +2308,16 @@ def main():
         BROWN = "\033[38;5;130m"
         RESET = "\033[0m"
 
-        print(f"\n{RED}Terminal:{RESET}")
-        print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
-        print(f"{BLUE}pulse:{RESET} {BROWN}[news] [cc] [gm] [wl] [wln] [pn] [cl] [gain] [ipo]{RESET}")
-        print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
-        print(f"{BLUE}read:{RESET} {BROWN}[sa] [vic] [wsj] [nyt] [brns] [sema] [ft] [sn] [mn]{RESET}")
-        print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
-        print(f"{BLUE}research:{RESET} {BROWN}[screen] [fund] [sec] [10k] [10q] [fs] [sta] [roic] [ins] [hol]{RESET}")
-        print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
-        print(f"{BLUE}tools:{RESET} {BROWN}[dcf] [val] [pch] [sc] [ovs] [sim] [op] [port] [est] [des] [ch] [note]{RESET}")
-        print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
+        print(f"\n{RED}Terminal{RESET}")
+        #print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
+        print(f"{LIGHT_GRAY}pulse:{RESET} {BROWN}[news] [cc] [gm] [wl] [wln] [pn] [cl] [gain] [ipo]{RESET}")
+        #print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
+        print(f"{LIGHT_GRAY}read:{RESET} {BROWN}[sa] [vic] [wsj] [nyt] [brns] [sema] [ft] [sn] [mn]{RESET}")
+        #print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
+        print(f"{LIGHT_GRAY}research:{RESET} {BROWN}[screen] [fund] [sec] [10k] [10q] [fs] [sta] [roic] [ins] [hol]{RESET}")
+        #print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
+        print(f"{LIGHT_GRAY}tools:{RESET} {BROWN}[dcf] [val] [pch] [sc] [ovs] [sim] [op] [port] [est] [des] [ch] [note]{RESET}")
+        print(f"{LIGHT_GRAY} ---- ")
 
         choice = input("Choose an option: ").strip()
         
