@@ -1890,7 +1890,7 @@ def est():
         df = pd.read_html(table_io)[0]
         
         # Print the DataFrame
-        print(f"\n{BROWN} Analyst Estimates: {RESET} {RED}{ticker}{BROWN}\n")
+        print(f"\n{RED} Analyst Estimates: {RESET} {RED}{ticker}{BROWN}\n")
         print(df.to_string(index=False))  # Print the table without the index
     else:
         print(f"{BROWN}No tables found for ticker {ticker}.{RESET}")
@@ -2310,7 +2310,7 @@ def main():
         BROWN = "\033[38;5;130m"
         RESET = "\033[0m"
 
-        print(f"\n{LIGHT_GRAY}Terminal:{RESET}")
+        print(f"\n{RED}Terminal:{RESET}")
         print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
         print(f"{BLUE}pulse:{RESET} {BROWN}[news] [cc] [gm] [wl] [wln] [pn] [cl] [gain] [ipo]{RESET}")
         print(f"{DARK_GRAY}--------------------------------------------------------------------{RESET}")
