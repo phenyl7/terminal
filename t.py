@@ -2147,7 +2147,7 @@ def mnl():
     def countdown(seconds):
         """Display a countdown for the next refresh."""
         for i in range(seconds, 0, -1):
-            sys.stdout.write(f"\r{BROWN}Next refresh in {i} seconds {RESET}")
+            sys.stdout.write(f"\r{BROWN}Next refresh for market news in {i} seconds {RESET}")
             sys.stdout.flush()
             time.sleep(1)
             
@@ -2521,11 +2521,124 @@ def snl():
             
             # Countdown for the next refresh (300 seconds = 5 minutes)
             for remaining in range(300, 0, -1):
-                print(f"\r{BROWN}Refreshing in {remaining} seconds...{RESET}", end="")
+                print(f"\r{BROWN}Refreshing for new stock news in {remaining} seconds...{RESET}", end="")
                 time.sleep(1)
 
     if __name__ == "__main__":
         main()
+
+def qm():
+    import yfinance as yf
+    from tabulate import tabulate
+    import os
+    import time
+    import pandas as pd
+
+    # ANSI color codes
+    LIME_GREEN = '\033[1;32m'
+    NEON_RED = '\033[91m'
+    GRAY = "\033[38;5;250m"
+    ORANGE = "\033[38;5;130m"
+    DARK_GRAY = "\033[30m"
+    BOLD = '\033[1m'
+    RESET = '\033[0m'
+
+    def colorize_percent(percent):
+        if isinstance(percent, (int, float)):
+            return f"{LIME_GREEN}{percent:.2f}%{RESET}" if percent >= 0 else f"{NEON_RED}{percent:.2f}%{RESET}"
+        return percent
+
+    def calculate_percent_change(current_price, past_price):
+        if past_price == 0:
+            return 'N/A'
+        return ((current_price - past_price) / past_price) * 100
+
+    def get_data(tickers):
+        performance = []
+        for ticker in tickers:
+            try:
+                # Fetch 1-minute intraday data for the last day
+                data = yf.Ticker(ticker).history(period='1d', interval='1m')
+
+                if not data.empty:
+                    current_price = data['Close'].iloc[-1]
+                    today_open_price = data['Open'].iloc[-1]
+                    percent_change_today = calculate_percent_change(current_price, today_open_price)
+                    volume = data['Volume'].iloc[-1]  # Get the most recent volume
+
+                    performance.append([
+                        f"{ORANGE}{ticker}{RESET}",
+                        f"{LIME_GREEN}${current_price:.2f}{RESET}",
+                        colorize_percent(percent_change_today),
+                        f"{LIME_GREEN}{volume}{RESET}"
+                    ])
+                else:
+                    performance.append([
+                        f"{ORANGE}{ticker}{RESET}",
+                        f"{LIME_GREEN}N/A{RESET}",
+                        f"{LIME_GREEN}N/A{RESET}",
+                        f"{LIME_GREEN}N/A{RESET}"
+                    ])
+            except Exception as e:
+                performance.append([
+                    f"{ORANGE}Unknown{RESET}",
+                    f"{ORANGE}{ticker}{RESET}",
+                    f"{LIME_GREEN}N/A{RESET}",
+                    f"{LIME_GREEN}N/A{RESET}"
+                ])
+                print(f"Error retrieving data for {ticker}: {e}")
+        return performance
+
+    def color_structural_gridlines(table_string, color):
+        lines = table_string.split('\n')
+        colored_lines = []
+        for i, line in enumerate(lines):
+            if i == 0 or i == len(lines) - 1 or set(line) <= set('+-=|'):
+                colored_line = color + line.replace('|', f'{color}|{RESET}') + RESET
+            else:
+                colored_line = color + ''.join(
+                    char if char != '|' else f'{color}|{RESET}' for char in line
+                )
+            colored_lines.append(colored_line + RESET)
+        return '\n'.join(colored_lines)
+
+    def main():
+        # Ask the user for input tickers
+        user_input = input("Enter tickers (1 = default, 2 = general): ")
+        
+        if user_input.strip() == "1":
+            tickers = ['TSLA', 'INTC', 'ASTS', 'SOFI', 'NVTS', 'QQQ', 'TQQQ', 'BTC-USD']
+        elif user_input.strip() == "2":
+            tickers = ['SPY', 'AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOGL', 'LLY', 'AVGO', 
+                    'TSLA', 'JPM', 'UNH', 'XOM', 'V', 'PG', 'MA', 'COST', 'JNJ', 'HD', 
+                    'ABBV', 'WMT', 'NFLX', 'MRK', 'BAC', 'KO', 'ORCL', 'CRM', 'AMD', 'ADBE']
+        else:
+            # Parse the input into a list
+            tickers = [ticker.strip() for ticker in user_input.split(',')]
+
+        refresh_interval = 60  # Refresh every 30 seconds
+
+        while True:
+            os.system('cls' if os.name == 'nt' else 'clear')
+            
+            performance = get_data(tickers)
+
+            headers = [f"{BOLD}{ORANGE}Ticker{RESET}", f"{BOLD}{ORANGE}Current Price{RESET}", f"{BOLD}{ORANGE}1D %Δ{RESET}", f"{BOLD}{ORANGE}Volume{RESET}"]
+            table = tabulate(performance, headers=headers, tablefmt="grid")
+            colored_table = color_structural_gridlines(table, DARK_GRAY)
+
+            print(colored_table)
+
+            for remaining in range(refresh_interval, 0, -1):
+                print(f"\rNext refresh in {remaining} seconds...", end='')
+                time.sleep(1)
+
+            print()  # Move to the next line after countdown
+
+    if __name__ == "__main__":
+        main()
+
+
 
 
 def main():
@@ -2544,7 +2657,7 @@ def main():
         print(f"{LIGHT_GRAY}read:{RESET} {BROWN}[sa] [vic] [wsj] [nyt] [brns] [sema] [ft] [sn]{RESET}")
         print(f"{LIGHT_GRAY}research:{RESET} {BROWN}[screen] [fund] [sec] [10k] [10q] [fs] [sta] [roic] [ins] [hol]{RESET}")
         print(f"{LIGHT_GRAY}tools:{RESET} {BROWN}[dcf] [val] [pch] [sc] [ovs] [sim] [op] [port] [est] [des] [ch] [note]{RESET}")
-        print(f"{LIGHT_GRAY}live:{RESET} {BROWN}[rtc] [mnl] [snl]")
+        print(f"{LIGHT_GRAY}live:{RESET} {BROWN}[rtc] [mnl] [snl] [qm]")
 
         print(f"{LIGHT_GRAY} ---- ")
 
@@ -2675,6 +2788,8 @@ def main():
             mnl()
         elif choice == 'snl':
             snl()
+        elif choice == 'qm':
+            qm()
         elif choice == 'ipo':
             ipo()
         elif choice == 'rtc':
