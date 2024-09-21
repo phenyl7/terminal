@@ -303,7 +303,7 @@ def gm():
 
     # Define ANSI color codes
     ORANGE = "\033[38;5;130m"
-    LIME_GREEN = '\033[38;5;22m'
+    LIME_GREEN = '\033[1;32m'
     NEON_RED = '\033[91m'
     WHITE = '\033[97m'
     GRAY = "\033[38;5;250m"
@@ -750,7 +750,7 @@ def cc():
     from tabulate import tabulate
 
     # ANSI color codes
-    LIME_GREEN = '\033[38;5;22m'
+    LIME_GREEN = '\033[1;32m'
     NEON_RED = '\033[91m'
     ORANGE = "\033[38;5;130m"  # orange color for commodity names and tickers
     DARK_GRAY = "\033[30m"  # dark gray color for table gridlines
@@ -760,15 +760,15 @@ def cc():
 
     # Tickers for Commodities and Cryptocurrencies
     commodity_tickers = {
-        "S&P 500": "VOO",
-        "NASDAQ 100": "QQQ",
+        "SP500": "VOO",
+        "NASDAQ": "QQQ",
         "TQQQ": "TQQQ",
         "QLD": "QLD",
         "NTSX": "NTSX",
-        "Bitcoin": "BTC-USD",
-        "Ethereum": "ETH-USD",
-        "10-Year Treasury Yield": "^TNX",
-        "30-Year Treasury Yield": "^TYX",
+        "BTC": "BTC-USD",
+        "ETH": "ETH-USD",
+        "10Y": "^TNX",
+        "30Y": "^TYX",
         "Gold": "GC=F"
     }
 
@@ -834,7 +834,7 @@ def cc():
     commodity_performance = get_data(commodity_tickers)
 
     # Print performance table with dark gray gridlines
-    headers = [f"{GRAY}Commodity{RESET}", f"{GRAY}Ticker{RESET}", f"{GRAY}Current Price{RESET}", f"{GRAY}1D %Δ{RESET}", f"{GRAY}1Y %Δ{RESET}", f"{GRAY}5Y %Δ{RESET}"]
+    headers = [f"{GRAY}Commodity{RESET}", f"{GRAY}Ticker{RESET}", f"{GRAY}Price{RESET}", f"{GRAY}1D %Δ{RESET}", f"{GRAY}1Y %Δ{RESET}", f"{GRAY}5Y %Δ{RESET}"]
     table = tabulate(commodity_performance, headers=headers, tablefmt="grid")
 
     # Function to color only the structural gridlines
@@ -860,7 +860,7 @@ def wl():
     from tabulate import tabulate
 
     # ANSI color codes
-    LIME_GREEN = '\033[38;5;22m'
+    LIME_GREEN = '\033[1;32m'
     NEON_RED = '\033[91m'
     GRAY = "\033[38;5;250m"
     ORANGE = "\033[38;5;130m"  # orange color for commodity names and tickers
@@ -1511,7 +1511,7 @@ def cl():
     # ANSI escape codes for colors
     GREEN = '\033[92m'
     RED = '\033[91m'
-    RESET = '\033[0m'
+    RESET = '\033[38;5;250m'
 
     # Function to format cells with color based on the number
     def color_numbers(value):
@@ -1566,7 +1566,7 @@ def cl():
         df = pd.DataFrame(rows, columns=headers)
 
         # Step 6: Drop the specified columns if they exist in the DataFrame
-        columns_to_drop = ['1d', '1w', '1m', '6m']
+        columns_to_drop = ['1d', '1w', '1m', '6m', 'Company Name', 'FilingDate', 'Industry']  # Add the company name column here
         df = df.drop(columns=[col for col in columns_to_drop if col in df.columns])
 
         # Step 7: Apply color formatting to positive and negative numbers
@@ -1581,6 +1581,8 @@ def cl():
     open_link = input("Would you like to open the website in your browser? (y/n): ").strip().lower()
     if open_link == 'y':
         webbrowser.open(url)
+
+    
 
 def fund():
     import webbrowser
@@ -1913,10 +1915,10 @@ def sn():
     import requests
     from bs4 import BeautifulSoup
     import textwrap
-    import webbrowser
 
     # Color codes
     RED = "\033[91m"
+    GRAY = "\033[38;5;250m"
     BROWN = "\033[38;5;130m"
     RESET = "\033[0m"  # Reset to default color
 
@@ -1980,8 +1982,6 @@ def sn():
     def print_news_items(news_items):
         seen_titles = set()
         seen_summaries = set()
-        numbered_items = {}
-        item_number = 1
 
         for item in news_items:
             # Check if we've seen this title or summary before
@@ -1989,9 +1989,8 @@ def sn():
             ('summary' in item and item['summary'] in seen_summaries):
                 continue  # Skip this item if we've seen it before
 
-            print(f"{RED}[{item_number}]{RESET}", end=" ")
             if 'title' in item:
-                print(f"{RED}{wrap_text(item['title'])}{RESET}")
+                print(f"{GRAY}{wrap_text(item['title'])}{RESET}")
                 seen_titles.add(item['title'])
             if 'summary' in item:
                 print(f"{BROWN}{wrap_text(item['summary'])}{RESET}")
@@ -2004,42 +2003,18 @@ def sn():
                 print(f"{BROWN}Related symbols:{RESET}")
                 print(f"{BROWN}{wrap_text(', '.join(item['related_symbols']))}{RESET}")
             print(" ")
-            print(" ")
-
-            if 'url' in item:
-                numbered_items[item_number] = item['url']
-            item_number += 1
-
-        return numbered_items
-
-    def open_url_in_browser(numbered_items):
-        while True:
-            try:
-                selection = int(input(f"{BROWN}Enter the number of the news item to open its URL (or 0 to exit): {RESET}"))
-                if selection == 0:
-                    break
-                if selection in numbered_items:
-                    webbrowser.open(numbered_items[selection])
-                else:
-                    print(f"{BROWN}Invalid number. Please try again.{RESET}")
-            except ValueError:
-                print(f"{BROWN}Please enter a valid number.{RESET}")
 
     def main():
-        while True:
-            ticker = input(f"{BROWN}Enter a stock ticker symbol (or 'quit' to exit): {RESET}").strip().upper()
-            if ticker.lower() == 'quit':
-                print(f"{BROWN}Exiting the program. Goodbye!{RESET}")
-                break
-            news_items = get_news_text(ticker)
-            
-            # Reverse the order of news items
-            news_items.reverse()
-            
-            numbered_items = print_news_items(news_items)
-            if numbered_items:
-                open_url_in_browser(numbered_items)
-            print(f"\n{BROWN}Ready for another ticker symbol.{RESET}")
+        ticker = input(f"{BROWN}Enter a stock ticker symbol: {RESET}").strip().upper()
+        news_items = get_news_text(ticker)
+        
+        # Reverse the order of news items
+        news_items.reverse()
+        
+        if news_items:
+            print_news_items(news_items)
+        else:
+            print(f"{BROWN}No news found for ticker: {ticker}{RESET}")
 
     if __name__ == "__main__":
         main()
@@ -2057,6 +2032,7 @@ def mnl():
 
     # Color codes
     RED = "\033[91m"
+    GRAY = "\033[38;5;250m"
     BROWN = "\033[38;5;130m"
     RESET = "\033[0m"  # Reset to default color
 
@@ -2130,7 +2106,7 @@ def mnl():
                 continue  # Skip this item if we've seen it before
 
             if 'title' in item:
-                print(f"{RED}{wrap_text(item['title'])}{RESET}")
+                print(f"{GRAY}{wrap_text(item['title'])}{RESET}")
                 seen_titles.add(item['title'])
             if 'summary' in item:
                 print(f"{BROWN}{wrap_text(item['summary'])}{RESET}")
@@ -2147,7 +2123,7 @@ def mnl():
     def countdown(seconds):
         """Display a countdown for the next refresh."""
         for i in range(seconds, 0, -1):
-            sys.stdout.write(f"\r{BROWN}Next refresh for market news in {i} seconds {RESET}")
+            sys.stdout.write(f"\r{RED}Next refresh for market news in {i} seconds {RESET}")
             sys.stdout.flush()
             time.sleep(1)
             
@@ -2179,128 +2155,45 @@ def mnl():
 
 
 def ipo():
+    import pandas as pd
     import requests
     from bs4 import BeautifulSoup
-    import textwrap
-    import webbrowser
+    from tabulate import tabulate
 
-    # Color codes
-    RED = "\033[91m"
+    # ANSI color code for brown
     BROWN = "\033[38;5;130m"
     RESET = "\033[0m"  # Reset to default color
 
-    def wrap_text(text, width=80):
-        """Wrap text to specified width, ensuring words are not cut off."""
-        return '\n'.join(textwrap.wrap(text, width=width))
+    # URL of the page to scrape
+    url = "https://stockanalysis.com/ipos/calendar/"
 
-    def get_news_text():
-        url = "https://stockanalysis.com/ipos/news/"
-        response = requests.get(url)
-        news_items = []
-        
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            news_divs = soup.find_all('div', class_=['flex flex-col', 'gap-4'])
-            
-            if not news_divs:
-                print(f"{BROWN}No news items found at {url}.{RESET}")
-                return news_items
-            
-            for item in news_divs:
-                news_item = {}
-                
-                # Extract title and URL
-                title = item.find('h3', class_='mb-2')
-                if title:
-                    title_link = title.find('a')
-                    if title_link:
-                        news_item['title'] = title_link.text.strip()
-                        news_item['url'] = title_link.get('href')
-                    else:
-                        news_item['title'] = title.text.strip()
-                
-                # Extract summary
-                summary = item.find('p', class_='overflow-auto')
-                if summary:
-                    news_item['summary'] = summary.text.strip()
-                
-                # Extract timestamp and source
-                meta_div = item.find('div', class_='mt-1 text-sm text-faded')
-                if meta_div:
-                    meta_text = meta_div.text.strip()
-                    news_item['timestamp'] = meta_div.get('title', meta_text)
-                    news_item['source'] = meta_text.split(' - ', 1)[-1] if ' - ' in meta_text else "N/A"
-                
-                # Extract related symbols if present
-                symbols_div = item.find('div', class_='mt-1.5 inline text-light')
-                if symbols_div:
-                    symbols = [a.text for a in symbols_div.find_all('a', class_='ticker')]
-                    if symbols:
-                        news_item['related_symbols'] = symbols
-                
-                if news_item:
-                    news_items.append(news_item)
-        else:
-            print(f"{BROWN}Failed to retrieve the webpage. Status code: {response.status_code}{RESET}")
-        
-        return news_items
+    # Send a GET request to the page
+    response = requests.get(url)
 
-    def print_news_items(news_items):
-        seen_titles = set()
-        seen_summaries = set()
-        numbered_items = {}
-        item_number = 1
+    # Parse the page content using BeautifulSoup
+    soup = BeautifulSoup(response.text, 'html.parser')
 
-        for item in news_items:
-            # Check if we've seen this title or summary before
-            if ('title' in item and item['title'] in seen_titles) or \
-            ('summary' in item and item['summary'] in seen_summaries):
-                continue  # Skip this item if we've seen it before
+    # Find the table on the page
+    table = soup.find('table')
 
-            print(f"{RED}[{item_number}]{RESET}", end=" ")
-            if 'title' in item:
-                print(f"{RED}{wrap_text(item['title'])}{RESET}")
-                seen_titles.add(item['title'])
-            if 'summary' in item:
-                print(f"{BROWN}{wrap_text(item['summary'])}{RESET}")
-                seen_summaries.add(item['summary'])
-            if 'timestamp' in item:
-                print(f"{BROWN}Timestamp: {item['timestamp']}{RESET}")
-            if 'source' in item:
-                print(f"{BROWN}Source: {item['source']}{RESET}")
-            if 'related_symbols' in item:
-                print(f"{BROWN}Related symbols:{RESET}")
-                print(f"{BROWN}{wrap_text(', '.join(item['related_symbols']))}{RESET}")
-            print(" ")
-            print(" ")
+    # Extract headers
+    headers = [th.text.strip() for th in table.find('thead').find_all('th')]
 
-            if 'url' in item:
-                numbered_items[item_number] = item['url']
-            item_number += 1
+    # Extract rows of the table
+    rows = []
+    for tr in table.find('tbody').find_all('tr'):
+        cells = [td.text.strip() for td in tr.find_all('td')]
+        rows.append(cells)
 
-        return numbered_items
+    # Create a DataFrame for better presentation
+    df = pd.DataFrame(rows, columns=headers)
 
-    def open_url_in_browser(numbered_items):
-        while True:
-            try:
-                selection = int(input(f"{BROWN}Enter the number of the news item to open its URL (or 0 to exit): {RESET}"))
-                if selection == 0:
-                    break
-                if selection in numbered_items:
-                    webbrowser.open(numbered_items[selection])
-                else:
-                    print(f"{BROWN}Invalid number. Please try again.{RESET}")
-            except ValueError:
-                print(f"{BROWN}Please enter a valid number.{RESET}")
+    # Apply color to the DataFrame headers and output using tabulate
+    colored_output = tabulate(df, headers=[BROWN + h + BROWN for h in df.columns], tablefmt='plain', stralign='left', numalign='right')
 
-    def main():
-        news_items = get_news_text()
-        numbered_items = print_news_items(news_items)
-        if numbered_items:
-            open_url_in_browser(numbered_items)
+    # Print the colored table
+    print(colored_output)
 
-    if __name__ == "__main__":
-        main()
 
 def rtc():
     import yfinance as yf
@@ -2487,13 +2380,13 @@ def snl():
                 continue
 
             if 'title' in item:
-                print(f"{RED}{wrap_text(item['title'])}{RESET}")
+                print(f"{GRAY}{wrap_text(item['title'])}{RESET}")
                 seen_titles.add(item['title'])
             if 'summary' in item:
                 print(f"{BROWN}{wrap_text(item['summary'])}{RESET}")
                 seen_summaries.add(item['summary'])
             if 'full_timestamp' in item:
-                print(f"{GRAY}{item['relative_time']}")
+                print(f"{GRAY}{item['relative_time']} {item['ticker']}")
             if 'source' in item:
                 print(f"{BROWN}Source: {item['source']}{RESET}")
             print(" ")
@@ -2521,7 +2414,7 @@ def snl():
             
             # Countdown for the next refresh (300 seconds = 5 minutes)
             for remaining in range(300, 0, -1):
-                print(f"\r{BROWN}Refreshing for new stock news in {remaining} seconds...{RESET}", end="")
+                print(f"\r{RED}Refreshing for new stock news in {remaining} seconds...{RESET}", end="")
                 time.sleep(1)
 
     if __name__ == "__main__":
@@ -2616,15 +2509,20 @@ def qm():
             # Parse the input into a list
             tickers = [ticker.strip() for ticker in user_input.split(',')]
 
-        refresh_interval = 60  # Refresh every 30 seconds
+        refresh_interval = 60  # Refresh every 60 seconds
 
         while True:
             os.system('cls' if os.name == 'nt' else 'clear')
             
             performance = get_data(tickers)
 
-            headers = [f"{BOLD}{ORANGE}Ticker{RESET}", f"{BOLD}{ORANGE}Current Price{RESET}", f"{BOLD}{ORANGE}1D %Δ{RESET}", f"{BOLD}{ORANGE}Volume{RESET}"]
-            table = tabulate(performance, headers=headers, tablefmt="grid")
+            headers = [f"{BOLD}{ORANGE}Ticker{RESET}", f"{BOLD}{ORANGE}${RESET}", f"{BOLD}{ORANGE}1D %Δ{RESET}", f"{BOLD}{ORANGE}Volume{RESET}"]
+            
+            # Custom format for tighter spacing
+            custom_format = 'grid'
+            column_alignments = ['left', 'right', 'right', 'right']
+            
+            table = tabulate(performance, headers=headers, tablefmt=custom_format, colalign=column_alignments, numalign='decimal')
             colored_table = color_structural_gridlines(table, DARK_GRAY)
 
             print(colored_table)
@@ -2637,7 +2535,6 @@ def qm():
 
     if __name__ == "__main__":
         main()
-
 
 
 
