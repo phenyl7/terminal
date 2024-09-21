@@ -1864,14 +1864,17 @@ def est():
     import pandas as pd
     from io import StringIO
     import webbrowser
+    from tabulate import tabulate  # Import tabulate
 
-    # ANSI escape code for brown color
+    # ANSI escape codes for colors
     BROWN = "\033[38;5;130m"
     RED = "\033[91m"
+    GRID_COLOR = "\033[30m"  # Dark (black) for grid
+    TEXT_COLOR = "\033[0m"  # Default text color
     RESET = "\033[0m"  # Reset color to default
 
     # Prompt the user to enter a ticker symbol
-    ticker = input(f"{BROWN}Enter the ticker symbol (e.g., TSLA): {RESET}").strip().upper()
+    ticker = input(f"{BROWN}Enter the ticker symbol (e.g., TSLA): ").strip().upper()
 
     # Construct the URL using the ticker symbol
     url = f'https://stockanalysis.com/stocks/{ticker}/forecast/'
@@ -1897,9 +1900,19 @@ def est():
         # Read the HTML table into a DataFrame
         df = pd.read_html(table_io)[0]
         
-        # Print the DataFrame
-        print(f"\n{RED} Analyst Estimates: {RESET} {RED}{ticker}{BROWN}\n")
-        print(df.to_string(index=False))  # Print the table without the index
+        # Print the DataFrame using tabulate
+        print(f"\n{RED}Analyst Estimates for {RESET}{RED}{ticker}{BROWN}\n")
+        
+        # Get the tabulated string
+        table_str = tabulate(df, headers='keys', tablefmt='grid', showindex=False)
+        
+        # Replace grid lines with colored versions
+        colored_table = table_str.replace('+', f'{GRID_COLOR}+{TEXT_COLOR}') \
+                                .replace('|', f'{GRID_COLOR}|{TEXT_COLOR}') \
+                                .replace('-', f'{GRID_COLOR}-{TEXT_COLOR}') \
+                                .replace('=', f'{GRID_COLOR}-{TEXT_COLOR}')
+        
+        print(colored_table)  # Print the modified table
     else:
         print(f"{BROWN}No tables found for ticker {ticker}.{RESET}")
 
@@ -1910,6 +1923,10 @@ def est():
         webbrowser.open(url)
     else:
         print(f"{BROWN}The link was not opened.{RESET}")
+
+    
+    
+
 
 def sn():
     import requests
