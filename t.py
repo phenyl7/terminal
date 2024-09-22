@@ -1501,6 +1501,74 @@ def fs():
         print_df_with_colored_first_column(financial_data)
         print_separator()
 
+def qu():
+    import yfinance as yf
+    from datetime import datetime
+
+    # Color definitions
+    RED = "\033[91m"
+    BROWN = "\033[38;5;130m"
+    CYAN = "\033[36m"
+    LIGHT_GRAY = "\033[38;5;250m"
+    GREEN = '\033[92m'
+    RESET = "\033[0m"  # Reset color
+
+    def get_stock_data(ticker):
+        stock = yf.Ticker(ticker)
+        info = stock.info
+        history = stock.history(period="5d")
+        
+        current_price = history['Close'].iloc[-1]
+        prev_close = history['Close'].iloc[-2]
+        percent_change = ((current_price - prev_close) / prev_close) * 100
+
+        data = {
+            'Date': datetime.now().strftime('%d %b'),
+            'Ticker': ticker.upper(),
+            'Latest Price': f"${current_price:.2f}",
+            '1 Day % Change': f"{percent_change:.2f}%",
+            'Open': f"${history['Open'].iloc[-1]:.2f}",
+            'High': f"${history['High'].iloc[-1]:.2f}",
+            'Low': f"${history['Low'].iloc[-1]:.2f}",
+            'Close': f"${history['Close'].iloc[-1]:.2f}",
+            'Volume': f"{history['Volume'].iloc[-1]:,}",
+            'Company Name': info.get('longName', 'N/A'),
+            'Market Cap': f"${info.get('marketCap', 0) / 1e9:.2f}B",
+            'Sector': info.get('sector', 'N/A'),
+            'Industry': info.get('industry', 'N/A'),
+            'Country': info.get('country', 'N/A'),
+            'Dividend Yield': f"{info.get('dividendYield', 0) * 100:.2f}%",
+            'Trailing PE': f"{info.get('trailingPE', 'N/A'):.1f}",
+            'Forward PE': f"{info.get('forwardPE', 'N/A'):.1f}",
+            'Beta': f"{info.get('beta', 'N/A')}",
+            'Price to Book': f"{info.get('priceToBook', 'N/A'):.1f}",
+            '52 Week High': f"${info.get('fiftyTwoWeekHigh', 'N/A')}",
+            '52 Week Low': f"${info.get('fiftyTwoWeekLow', 'N/A')}",
+            'Enterprise Value': f"${info.get('enterpriseValue', 0) / 1e9:.2f}B",
+            'Total Revenue': f"${info.get('totalRevenue', 0) / 1e9:.2f}B",
+            'Earnings Growth': f"{info.get('earningsGrowth', 0) * 100:.2f}%"
+        }
+        return data
+
+    def display_stock_data(data):
+        # Conditional color formatting
+        change_color = GREEN if float(data['1 Day % Change'][:-1]) > 0 else RED
+        dy_color = GREEN if float(data['Dividend Yield'][:-1]) > 0 else RED
+        eg_color = GREEN if float(data['Earnings Growth'][:-1]) > 0 else RED
+        p_color = GREEN if float(data['1 Day % Change'][:-1]) > 0 else RED
+
+        print(f"{CYAN}{data['Ticker']}{RESET}  {CYAN}{RESET}{data['Company Name']}  {p_color}{data['Latest Price']}{RESET}  {change_color}{data['1 Day % Change']}{RESET}  {LIGHT_GRAY}{data['Date']}{RESET}")
+        print(f"O{BROWN}{data['Open']}{RESET}  H{BROWN}{data['High']}{RESET}  L{BROWN}{data['Low']}{RESET}  C{BROWN}{data['Close']}{RESET}  Vol{BROWN}{data['Volume']}{RESET}  ")
+        print(f"{CYAN}MC{RESET}{BROWN}{data['Market Cap']}{RESET}  {CYAN}Ind{RESET}{BROWN}{data['Industry']}{RESET}  {CYAN}{data['Country']}{RESET}")
+        print(f"{CYAN}DY{RESET}{dy_color}{data['Dividend Yield']}{RESET}  {CYAN}TPE{RESET}{BROWN}{data['Trailing PE']}{RESET}  {CYAN}FPE{RESET}{BROWN}{data['Forward PE']}{RESET}  {CYAN}Beta{RESET}{BROWN}{data['Beta']}{RESET}  {CYAN}PB{RESET}{BROWN}{data['Price to Book']}{RESET}")
+        print(f"{CYAN}52H{RESET}{GREEN}{data['52 Week High']}{RESET}  {CYAN}52L{RESET}{RED}{data['52 Week Low']}{RESET}  {CYAN}EV{RESET}{BROWN}{data['Enterprise Value']}{RESET}  {CYAN}REV{RESET}{BROWN}{data['Total Revenue']}{RESET}  {CYAN}EG{RESET}{eg_color}{data['Earnings Growth']}{RESET}")
+
+    if __name__ == "__main__":
+        ticker = input("Enter a stock ticker: ")
+        stock_data = get_stock_data(ticker)
+        display_stock_data(stock_data)
+
+
 def cl():
     import requests
     from bs4 import BeautifulSoup
@@ -1826,6 +1894,7 @@ def gain():
         print(f"{NEON_RED}[3]{RESET} {ORANGE}Monthly gainers{RESET}")
         print(f"{NEON_RED}[4]{RESET} {ORANGE}YTD gainers{RESET}")
         print(f"{NEON_RED}[5]{RESET} {ORANGE}1Y gainers{RESET}")
+        
         
         choice = input(f"{ORANGE}Enter your choice (1-5): {RESET}")
         
@@ -2553,6 +2622,70 @@ def qm():
     if __name__ == "__main__":
         main()
 
+def si():
+    import requests
+    from bs4 import BeautifulSoup
+    from tabulate import tabulate
+
+    # ANSI escape codes
+    BLACK = '\033[0m'
+    ORANGE = "\033[38;5;130m"
+
+    # URL to scrape
+    url = "https://www.highshortinterest.com/"
+
+    # Fetch the page content
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    # Extract all the text from the page
+    page_text = soup.get_text(separator="\n", strip=True)
+
+    # Find the position of the word "Ticker" and extract everything after it
+    start_position = page_text.find("Ticker")
+
+    # Check if the word "Ticker" is found, then extract text after it
+    if start_position != -1:
+        page_text_after_ticker = page_text[start_position:]
+    else:
+        print("The word 'Ticker' was not found in the page.")
+        exit()
+
+    # Split the extracted text into lines
+    lines = page_text_after_ticker.split("\n")
+
+    # Create a list to store the rows for the table
+    table_data = []
+    headers = ["Ticker", "Company", "Exchange", "ShortInt", "Float", "Outstd", "Industry"]
+
+    # Remove duplicate headers
+    lines = [line for line in lines if line not in headers]
+
+    # Loop through the lines and extract rows
+    for i in range(0, len(lines), 7):
+        row = lines[i:i+7]
+        if len(row) == 7:  # Ensure that we have a complete row
+            table_data.append(row)
+
+    # Format the table with colors
+    formatted_table = []
+    formatted_headers = [ORANGE + header + BLACK for header in headers]
+    formatted_table.append(formatted_headers)
+
+    for row in table_data:
+        formatted_row = [ORANGE + str(item) + BLACK for item in row]
+        formatted_table.append(formatted_row)
+
+    # Create the table with tabulate
+    table = tabulate(formatted_table, tablefmt="plain")
+
+    # Replace grid characters with black
+    table = table.replace('+', BLACK + '+')\
+                .replace('-', BLACK + '-')\
+                .replace('|', BLACK + '|')
+
+    # Print the formatted table
+    print(BLACK + table + BLACK)
 
 
 def main():
@@ -2564,14 +2697,15 @@ def main():
         LIGHT_GRAY = "\033[38;5;250m"
         DARK_GRAY = "\033[38;5;235m"
         BROWN = "\033[38;5;130m"
+        CYAN = "\033[36m"
         RESET = "\033[0m"
 
-        print(f"\n{RED}Terminal{RESET}")
-        print(f"{LIGHT_GRAY}pulse:{RESET} {BROWN}[news] [cc] [gm] [wl] [wln] [pn] [cl] [gain] [ipo]{RESET}")
-        print(f"{LIGHT_GRAY}read:{RESET} {BROWN}[sa] [vic] [wsj] [nyt] [brns] [sema] [ft] [sn]{RESET}")
-        print(f"{LIGHT_GRAY}research:{RESET} {BROWN}[screen] [fund] [sec] [10k] [10q] [fs] [sta] [roic] [ins] [hol]{RESET}")
-        print(f"{LIGHT_GRAY}tools:{RESET} {BROWN}[dcf] [val] [pch] [sc] [ovs] [sim] [op] [port] [est] [des] [ch] [note]{RESET}")
-        print(f"{LIGHT_GRAY}live:{RESET} {BROWN}[rtc] [mnl] [snl] [qm]")
+        print(f"\n{RED}Terminal {RESET}")
+        print(f"{CYAN}pulse:{RESET} {BROWN}[news] [cc] [gm] [wl] [wln] [pn] [cl] [gain] [ipo] [si] [qu]{RESET}")
+        print(f"{CYAN}read:{RESET} {BROWN}[sa] [vic] [wsj] [nyt] [brns] [sema] [ft] [sn]{RESET}")
+        print(f"{CYAN}research:{RESET} {BROWN}[screen] [fund] [sec] [10k] [10q] [fs] [sta] [roic] [ins] [hol]{RESET}")
+        print(f"{CYAN}tools:{RESET} {BROWN}[dcf] [val] [pch] [sc] [ovs] [sim] [op] [port] [est] [des] [ch] [note]{RESET}")
+        print(f"{CYAN}live:{RESET} {BROWN}[rtc] [mnl] [snl] [qm]")
 
         print(f"{LIGHT_GRAY} ---- ")
 
@@ -2708,6 +2842,10 @@ def main():
             ipo()
         elif choice == 'rtc':
             rtc()
+        elif choice == 'si':
+            si()
+        elif choice == 'qu':
+            qu()
         elif choice == 'q':
             break
         else:
