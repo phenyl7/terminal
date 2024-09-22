@@ -1553,15 +1553,13 @@ def qu():
     def display_stock_data(data):
         # Conditional color formatting
         change_color = GREEN if float(data['1 Day % Change'][:-1]) > 0 else RED
-        dy_color = GREEN if float(data['Dividend Yield'][:-1]) > 0 else RED
-        eg_color = GREEN if float(data['Earnings Growth'][:-1]) > 0 else RED
         p_color = GREEN if float(data['1 Day % Change'][:-1]) > 0 else RED
 
         print(f"{CYAN}{data['Ticker']}{RESET}  {CYAN}{RESET}{data['Company Name']}  {p_color}{data['Latest Price']}{RESET}  {change_color}{data['1 Day % Change']}{RESET}  {LIGHT_GRAY}{data['Date']}{RESET}")
         print(f"O{BROWN}{data['Open']}{RESET}  H{BROWN}{data['High']}{RESET}  L{BROWN}{data['Low']}{RESET}  C{BROWN}{data['Close']}{RESET}  Vol{BROWN}{data['Volume']}{RESET}  ")
         print(f"{CYAN}MC{RESET}{BROWN}{data['Market Cap']}{RESET}  {CYAN}Ind{RESET}{BROWN}{data['Industry']}{RESET}  {CYAN}{data['Country']}{RESET}")
-        print(f"{CYAN}DY{RESET}{dy_color}{data['Dividend Yield']}{RESET}  {CYAN}TPE{RESET}{BROWN}{data['Trailing PE']}{RESET}  {CYAN}FPE{RESET}{BROWN}{data['Forward PE']}{RESET}  {CYAN}Beta{RESET}{BROWN}{data['Beta']}{RESET}  {CYAN}PB{RESET}{BROWN}{data['Price to Book']}{RESET}")
-        print(f"{CYAN}52H{RESET}{GREEN}{data['52 Week High']}{RESET}  {CYAN}52L{RESET}{RED}{data['52 Week Low']}{RESET}  {CYAN}EV{RESET}{BROWN}{data['Enterprise Value']}{RESET}  {CYAN}REV{RESET}{BROWN}{data['Total Revenue']}{RESET}  {CYAN}EG{RESET}{eg_color}{data['Earnings Growth']}{RESET}")
+        print(f"{CYAN}DY{RESET}{BROWN}{data['Dividend Yield']}{RESET}  {CYAN}TPE{RESET}{BROWN}{data['Trailing PE']}{RESET}  {CYAN}FPE{RESET}{BROWN}{data['Forward PE']}{RESET}  {CYAN}Beta{RESET}{BROWN}{data['Beta']}{RESET}  {CYAN}PB{RESET}{BROWN}{data['Price to Book']}{RESET}")
+        print(f"{CYAN}52H{RESET}{BROWN}{data['52 Week High']}{RESET}  {CYAN}52L{RESET}{BROWN}{data['52 Week Low']}{RESET}  {CYAN}EV{RESET}{BROWN}{data['Enterprise Value']}{RESET}  {CYAN}REV{RESET}{BROWN}{data['Total Revenue']}{RESET}  {CYAN}EG{RESET}{BROWN}{data['Earnings Growth']}{RESET}")
 
     if __name__ == "__main__":
         ticker = input("Enter a stock ticker: ")
