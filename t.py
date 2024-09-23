@@ -2518,111 +2518,102 @@ def snl():
 
 def qm():
     import yfinance as yf
-    from tabulate import tabulate
-    import os
     import time
+    import os
+    import json
 
-    # ANSI color codes
+    # Color definitions
+    BROWN = "\033[38;5;130m"
+    CYAN = "\033[36m"
     LIME_GREEN = '\033[1;32m'
     NEON_RED = '\033[91m'
-    GRAY = "\033[38;5;250m"
-    ORANGE = "\033[38;5;130m"
-    DARK_GRAY = "\033[30m"
-    BOLD = '\033[1m'
-    RESET = '\033[0m'
+    BLACK = "\033[30m"
+    RESET = "\033[0m"  # Reset color
 
-    def colorize_percent(percent):
-        if isinstance(percent, (int, float)):
-            return f"{LIME_GREEN}{percent:.2f}%{RESET}" if percent >= 0 else f"{NEON_RED}{percent:.2f}%{RESET}"
-        return percent
+    # Predefined tickers for option "2"
+    PREDEFINED_TICKERS = [
+        "AAPL", "MSFT", "NVDA", "AMZN", "META",
+        "GOOGL", "AVGO", "GOOG", "LLY",
+        "TSLA", "JPM", "UNH", "XOM", "V",
+        "PG", "MA", "COST", "JNJ", "HD",
+        "WMT", "ABBV", "NFLX", "MRK", "KO"
+    ]
 
-    def calculate_percent_change(current_price, past_price):
-        if past_price == 0:
-            return 'N/A'
-        return ((current_price - past_price) / past_price) * 100
-
-    def get_data(tickers):
-        performance = []
+    # Function to fetch and display quotes
+    def fetch_quotes(tickers):
+        data = []
         for ticker in tickers:
-            try:
-                # Fetch 1-day intraday data
-                data = yf.Ticker(ticker).history(period='1d', interval='1m')
-
-                if not data.empty:
-                    current_price = data['Close'].iloc[-1]
-                    today_open_price = data['Open'].iloc[0]
-                    percent_change_today = calculate_percent_change(current_price, today_open_price)
-
-                    performance.append([
-                        f"{ORANGE}{ticker}{RESET}",
-                        f"{LIME_GREEN}${current_price:.2f}{RESET}",
-                        colorize_percent(percent_change_today)
-                    ])
-                else:
-                    performance.append([
-                        f"{ORANGE}{ticker}{RESET}",
-                        f"{LIME_GREEN}N/A{RESET}",
-                        f"{LIME_GREEN}N/A{RESET}"
-                    ])
-            except Exception as e:
-                performance.append([
-                    f"{ORANGE}Unknown{RESET}",
-                    f"{ORANGE}{ticker}{RESET}",
-                    f"{LIME_GREEN}N/A{RESET}"
-                ])
-                print(f"Error retrieving data for {ticker}: {e}")
-        return performance
-
-    def color_structural_gridlines(table_string, color):
-        lines = table_string.split('\n')
-        colored_lines = []
-        for i, line in enumerate(lines):
-            if i == 0 or i == len(lines) - 1 or set(line) <= set('+-=|'):
-                colored_line = color + line.replace('|', f'{color}|{RESET}') + RESET
+            stock = yf.Ticker(ticker)
+            # Get historical data for the last 5 days
+            hist = stock.history(period='5d')
+            
+            if len(hist) >= 2:
+                current_price = hist['Close'].iloc[-1]
+                previous_close = hist['Close'].iloc[-2]
+                change_percent = ((current_price - previous_close) / previous_close) * 100
             else:
-                colored_line = color + ''.join(
-                    char if char != '|' else f'{color}|{RESET}' for char in line
-                )
-            colored_lines.append(colored_line + RESET)
-        return '\n'.join(colored_lines)
+                current_price = None
+                change_percent = None
+            
+            # Round values to two decimal places and apply colors
+            price_str = f"{round(current_price, 2):,.2f}" if current_price is not None else "N/A"
+            price_color = LIME_GREEN if change_percent > 0 else NEON_RED if change_percent is not None else RESET
+            price_str = f"{price_color}{price_str}{RESET}"
+
+            change_str = (f"{LIME_GREEN}{round(change_percent, 2):,.2f}%{RESET}" if change_percent > 0 else 
+                        f"{NEON_RED}{round(change_percent, 2):,.2f}%{RESET}" if change_percent is not None else "N/A")
+            
+            data.append([f"{CYAN}{ticker}{RESET}", price_str, change_str])
+        
+        return data
+
+    def print_quotes(data):
+        # Print the headers
+        #header = f"{BROWN}{'Ticker':<8} {'Current Price':<15} {'Change (%)':<10}{RESET}"
+        #print(header)
+        
+        # Print each row of data
+        for ticker, price, change in data:
+            # Format the row with manual spacing
+            print(f"{ticker} {price} {change}")
+
+    def load_portfolio_tickers(file_path):
+        with open(file_path, 'r') as f:
+            portfolio = json.load(f)
+        
+        # Extract tickers except for "1"
+        return [ticker for ticker in portfolio.keys() if ticker != "1"]
 
     def main():
-        # Ask the user for input tickers
-        user_input = input("Enter tickers (1 = default, 2 = general): ")
+        user_input = input("Enter tickers(1 = port, 2 = gen): ")
         
         if user_input.strip() == "1":
-            tickers = ['TSLA', 'INTC', 'ASTS', 'SOFI', 'NVTS', 'QQQ', 'TQQQ', 'BTC-USD']
+            tickers = load_portfolio_tickers('portfolio.json')
         elif user_input.strip() == "2":
-            tickers = ['SPY', 'AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOGL', 'LLY', 'AVGO', 
-                    'TSLA', 'JPM', 'UNH', 'XOM', 'V', 'PG', 'MA', 'COST', 'JNJ', 'HD', 
-                    'ABBV', 'WMT', 'NFLX', 'MRK', 'BAC', 'KO', 'ORCL', 'CRM', 'AMD', 'ADBE']
+            tickers = PREDEFINED_TICKERS
         else:
-            # Parse the input into a list
             tickers = [ticker.strip() for ticker in user_input.split(',')]
-
-        refresh_interval = 60  # Refresh every 60 seconds
-
-        while True:
-            os.system('cls' if os.name == 'nt' else 'clear')
-            
-            performance = get_data(tickers)
-
-            headers = [f"{BOLD}{ORANGE}Ticker{RESET}", f"{BOLD}{ORANGE}${RESET}", f"{BOLD}{ORANGE}1D %Δ{RESET}"]
-            
-            # Custom format for tighter spacing
-            custom_format = 'grid'
-            column_alignments = ['left', 'right', 'right']
-            
-            table = tabulate(performance, headers=headers, tablefmt=custom_format, colalign=column_alignments, numalign='decimal')
-            colored_table = color_structural_gridlines(table, DARK_GRAY)
-
-            print(colored_table)
-
-            for remaining in range(refresh_interval, 0, -1):
-                print(f"\rNext refresh in {remaining} seconds...", end='')
-                time.sleep(1)
-
-            print()  # Move to the next line after countdown
+        
+        refresh_time = 60  # Time in seconds for the next refresh
+        
+        try:
+            while True:
+                # Clear the terminal
+                os.system('cls' if os.name == 'nt' else 'clear')
+                
+                # Fetch quotes
+                quotes = fetch_quotes(tickers)
+                
+                # Print formatted quotes
+                print_quotes(quotes)
+                
+                # Countdown timer
+                for remaining in range(refresh_time, 0, -1):
+                    print(f"\r[{remaining}] ", end="")
+                    time.sleep(1)
+                print()  # Move to the next line after countdown
+        except KeyboardInterrupt:
+            print("Monitoring stopped.")
 
     if __name__ == "__main__":
         main()
@@ -2709,7 +2700,7 @@ def main():
 
         print(f"\n{RED}Terminal {RESET}")
         print(f"{CYAN}pulse:{RESET} {BROWN}[news] [cc] [gm] [wl] [wln] [pn] [cl] [gain] [ipo] [si] [qu]{RESET}")
-        print(f"{CYAN}read:{RESET} {BROWN}[sa] [vic] [wsj] [nyt] [brns] [sema] [ft] [sn]{RESET}")
+        print(f"{CYAN}read:{RESET} {BROWN}[sa] [vic] [wsj] [nyt] [brns] [sema] [ft] [sn] [wsb]{RESET}")
         print(f"{CYAN}research:{RESET} {BROWN}[screen] [fund] [sec] [10k] [10q] [fs] [sta] [roic] [ins] [hol]{RESET}")
         print(f"{CYAN}tools:{RESET} {BROWN}[dcf] [val] [pch] [sc] [ovs] [sim] [op] [port] [est] [des] [ch] [note]{RESET}")
         print(f"{CYAN}live:{RESET} {BROWN}[rtc] [mnl] [snl] [qm]")
@@ -2793,6 +2784,9 @@ def main():
         elif choice == 'vic':
             import webbrowser
             webbrowser.open("https://valueinvestorsclub.com/ideas")
+        elif choice == 'wsb':
+            import webbrowser
+            webbrowser.open("https://www.reddit.com/r/wallstreetbets/")
         elif choice == 'val':
             val()
         elif choice == 'dcf':
