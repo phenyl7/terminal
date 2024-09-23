@@ -2219,7 +2219,7 @@ def mnl():
     def countdown(seconds):
         """Display a countdown for the next refresh."""
         for i in range(seconds, 0, -1):
-            sys.stdout.write(f"\r{RED}Next refresh for market news in {i} seconds {RESET}")
+            sys.stdout.write(f"\r{RED}[{i}]{RESET}")
             sys.stdout.flush()
             time.sleep(1)
             
