@@ -327,13 +327,14 @@ def gm():
 
     def get_stock_data(ticker):
         stock = yf.Ticker(ticker)
-        data = stock.history(period='1d', interval='1m')
+        data = stock.history(period='5d', interval='1d')  # Fetching the last 2 days of data
         
-        # Latest price and today's data
+        # Latest price and previous day's close
         latest_price = data['Close'].iloc[-1] if not data.empty else None
-        if len(data) > 1:
-            opening_price = data['Open'].iloc[0]
-            percent_change_today = ((latest_price - opening_price) / opening_price) * 100
+        previous_close = data['Close'].iloc[-2] if len(data) > 1 else None  # Last available closing price
+        
+        if latest_price is not None and previous_close is not None:
+            percent_change_today = ((latest_price - previous_close) / previous_close) * 100
         else:
             percent_change_today = None
 
@@ -744,9 +745,11 @@ def sc():
         main()
 
 
+
     
 def cc():
     import yfinance as yf
+    import pandas as pd
     from tabulate import tabulate
 
     # ANSI color codes
@@ -790,10 +793,11 @@ def cc():
                 data = stock.history(period="5y")  # Fetch 5 years of data
                 
                 if not data.empty:
-                    # Latest price and today's data
+                    # Latest price and previous closing price
                     current_price = data['Close'].iloc[-1]
-                    today_open_price = data['Open'].iloc[-1]
-                    percent_change_today = calculate_percent_change(current_price, today_open_price)
+                    previous_close = data['Close'].iloc[-2] if len(data) > 1 else None
+
+                    percent_change_today = calculate_percent_change(current_price, previous_close)  # Changed to previous close
                     
                     # 1 Year data
                     one_year_ago = data.index[-1] - pd.DateOffset(years=1)
@@ -855,8 +859,10 @@ def cc():
     print(colored_table)
 
 
+
 def wl():
     import yfinance as yf
+    import pandas as pd
     from tabulate import tabulate
 
     # ANSI color codes
@@ -868,7 +874,7 @@ def wl():
     BLUE = "\033[38;5;24m"  # color for header names
     RESET = '\033[30m'
 
-    # Tickers for Commodities and Cryptocurrencies
+    # Tickers for Companies
     commodity_tickers = {
         "Interactive Brokers": "IBKR",
         "Zoom Video Communications": "ZM",
@@ -897,10 +903,11 @@ def wl():
                 data = stock.history(period="5y")  # Fetch 5 years of data
                 
                 if not data.empty:
-                    # Latest price and today's data
+                    # Latest price and previous closing price
                     current_price = data['Close'].iloc[-1]
-                    today_open_price = data['Open'].iloc[-1]
-                    percent_change_today = calculate_percent_change(current_price, today_open_price)
+                    previous_close = data['Close'].iloc[-2] if len(data) > 1 else None
+
+                    percent_change_today = calculate_percent_change(current_price, previous_close)  # Changed to previous close
                     
                     # 1 Year data
                     one_year_ago = data.index[-1] - pd.DateOffset(years=1)
@@ -937,7 +944,7 @@ def wl():
                 print(f"Error retrieving data for {name}: {e}")
         return performance
 
-    # Get commodity data
+    # Get company data
     commodity_performance = get_data(commodity_tickers)
 
     # Print performance table with dark gray gridlines
@@ -960,7 +967,6 @@ def wl():
     colored_table = color_structural_gridlines(table, DARK_GRAY)
 
     print(colored_table)
-
 
 
 
@@ -1416,7 +1422,11 @@ def dcf():
         calculate_intrinsic_value()
 
 def fs():
-    ORANGE = "\033[38;5;130m"
+    ORANGE = "\033[36m"
+    RED = "\033[91m"
+    CYAN = "\033[36m"
+    RESET = "\033[38;5;130m"
+
     import requests
     import pandas as pd
     from bs4 import BeautifulSoup
@@ -1456,7 +1466,7 @@ def fs():
 
     def format_value(value):
         if isinstance(value, str) and value.startswith('-') and '%' in value:
-            return f"{Fore.RED}{value}{Style.RESET_ALL}"
+            return f"{Fore.RED}{value}{RESET}"
         else:
             return value
 
@@ -1475,7 +1485,7 @@ def fs():
                 rest_cols = [f"{str(item):<{max_col_width}}" for item in row.iloc[1:]]
                 
                 # Apply color formatting
-                first_col_colored = f"{ORANGE}{first_col}{Style.RESET_ALL}"
+                first_col_colored = f"{ORANGE}{first_col}{RESET}"
                 rest_cols_colored = [format_value(col) for col in rest_cols]
                 
                 print(f"{first_col_colored} " + " ".join(rest_cols_colored))
@@ -2002,6 +2012,7 @@ def sn():
 
     # Color codes
     RED = "\033[91m"
+    CYAN = "\033[36m"
     GRAY = "\033[38;5;250m"
     BROWN = "\033[38;5;130m"
     RESET = "\033[0m"  # Reset to default color
@@ -2074,7 +2085,7 @@ def sn():
                 continue  # Skip this item if we've seen it before
 
             if 'title' in item:
-                print(f"{GRAY}{wrap_text(item['title'])}{RESET}")
+                print(f"{CYAN}{wrap_text(item['title'])}{RESET}")
                 seen_titles.add(item['title'])
             if 'summary' in item:
                 print(f"{BROWN}{wrap_text(item['summary'])}{RESET}")
@@ -2117,6 +2128,7 @@ def mnl():
     # Color codes
     RED = "\033[91m"
     GRAY = "\033[38;5;250m"
+    CYAN = "\033[36m"
     BROWN = "\033[38;5;130m"
     RESET = "\033[0m"  # Reset to default color
 
@@ -2190,7 +2202,7 @@ def mnl():
                 continue  # Skip this item if we've seen it before
 
             if 'title' in item:
-                print(f"{GRAY}{wrap_text(item['title'])}{RESET}")
+                print(f"{CYAN}{wrap_text(item['title'])}{RESET}")
                 seen_titles.add(item['title'])
             if 'summary' in item:
                 print(f"{BROWN}{wrap_text(item['summary'])}{RESET}")
@@ -2509,7 +2521,6 @@ def qm():
     from tabulate import tabulate
     import os
     import time
-    import pandas as pd
 
     # ANSI color codes
     LIME_GREEN = '\033[1;32m'
@@ -2534,25 +2545,22 @@ def qm():
         performance = []
         for ticker in tickers:
             try:
-                # Fetch 1-minute intraday data for the last day
+                # Fetch 1-day intraday data
                 data = yf.Ticker(ticker).history(period='1d', interval='1m')
 
                 if not data.empty:
                     current_price = data['Close'].iloc[-1]
-                    today_open_price = data['Open'].iloc[-1]
+                    today_open_price = data['Open'].iloc[0]
                     percent_change_today = calculate_percent_change(current_price, today_open_price)
-                    volume = data['Volume'].iloc[-1]  # Get the most recent volume
 
                     performance.append([
                         f"{ORANGE}{ticker}{RESET}",
                         f"{LIME_GREEN}${current_price:.2f}{RESET}",
-                        colorize_percent(percent_change_today),
-                        f"{LIME_GREEN}{volume}{RESET}"
+                        colorize_percent(percent_change_today)
                     ])
                 else:
                     performance.append([
                         f"{ORANGE}{ticker}{RESET}",
-                        f"{LIME_GREEN}N/A{RESET}",
                         f"{LIME_GREEN}N/A{RESET}",
                         f"{LIME_GREEN}N/A{RESET}"
                     ])
@@ -2560,7 +2568,6 @@ def qm():
                 performance.append([
                     f"{ORANGE}Unknown{RESET}",
                     f"{ORANGE}{ticker}{RESET}",
-                    f"{LIME_GREEN}N/A{RESET}",
                     f"{LIME_GREEN}N/A{RESET}"
                 ])
                 print(f"Error retrieving data for {ticker}: {e}")
@@ -2600,11 +2607,11 @@ def qm():
             
             performance = get_data(tickers)
 
-            headers = [f"{BOLD}{ORANGE}Ticker{RESET}", f"{BOLD}{ORANGE}${RESET}", f"{BOLD}{ORANGE}1D %Δ{RESET}", f"{BOLD}{ORANGE}Volume{RESET}"]
+            headers = [f"{BOLD}{ORANGE}Ticker{RESET}", f"{BOLD}{ORANGE}${RESET}", f"{BOLD}{ORANGE}1D %Δ{RESET}"]
             
             # Custom format for tighter spacing
             custom_format = 'grid'
-            column_alignments = ['left', 'right', 'right', 'right']
+            column_alignments = ['left', 'right', 'right']
             
             table = tabulate(performance, headers=headers, tablefmt=custom_format, colalign=column_alignments, numalign='decimal')
             colored_table = color_structural_gridlines(table, DARK_GRAY)
@@ -2619,6 +2626,8 @@ def qm():
 
     if __name__ == "__main__":
         main()
+
+
 
 def si():
     import requests
