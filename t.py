@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import webbrowser 
 from edgar import *
 
+
 # File to save portfolio data
 PORTFOLIO_FILE = 'portfolio.json'
 
@@ -112,7 +113,7 @@ def plot():
         fig.patch.set_facecolor('black')
 
         # Plot stock price on the primary y-axis
-        ax1[0].plot(stock_data.index, stock_data['Adj Close'], label=f'{ticker} Price', color='white')
+        ax1[0].plot(stock_data.index, stock_data['Adj Close'], color='white')
         ax1[0].fill_between(stock_data.index, stock_data['Adj Close'], color='darkblue', alpha=0.4)
 
         # Add a text box with an orange background for latest price
@@ -126,20 +127,20 @@ def plot():
         y_max = stock_data['Adj Close'].max()
         ax1[0].set_ylim(y_min * 0.90, y_max * 1.10)
 
-        ax1[0].set_title(f'{ticker} {time_range_number}', color='white')
-        ax1[0].set_ylabel('Price', color='white')
-        ax1[0].legend()
+        ax1[0].set_title(f'{ticker} chart', color='orange')
+        ax1[0].set_ylabel('Price', color='orange')
+        #ax1[0].legend()
         ax1[0].set_facecolor('black')  # Background color of the plot
-        ax1[0].tick_params(axis='both', colors='orange')  # Color of the ticks
-        ax1[0].grid(color='orange', linestyle='--', linewidth=0.5)  # Grid color and style
+        ax1[0].tick_params(axis='both', colors='grey')  # Color of the ticks
+        ax1[0].grid(color='grey', linestyle='--', linewidth=0.5)  # Grid color and style
 
         # Plot volume bars on the secondary y-axis
-        ax1[1].bar(stock_data.index, stock_data['Volume'], color='#536878', alpha=1)
-        ax1[1].set_xlabel('Date', color='white')
-        ax1[1].set_ylabel('Volume', color='white')
+        ax1[1].bar(stock_data.index, stock_data['Volume'], color='cyan', alpha=1)
+        ax1[1].set_xlabel('Date', color='orange')
+        ax1[1].set_ylabel('Volume', color='orange')
         ax1[1].set_facecolor('black')  # Background color of the plot
-        ax1[1].tick_params(axis='both', colors='orange')  # Color of the ticks
-        ax1[1].grid(color='orange', linestyle='--', linewidth=0.5)  # Grid color and style
+        ax1[1].tick_params(axis='both', colors='grey')  # Color of the ticks
+        ax1[1].grid(color='grey', linestyle='--', linewidth=0.5)  # Grid color and style
 
         plt.tight_layout()  # Adjust layout to fit both plots
         plt.show(block=False)
@@ -149,149 +150,226 @@ def plot():
 
 
 
-def port():
+def port(): 
     import json
+    import yfinance as yf
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    from datetime import datetime
+    import warnings
+    warnings.filterwarnings("ignore", category=pd.errors.SettingWithCopyWarning)
 
-    def load_portfolio(filename='portfolio.json'):
+    RED = "\033[91m"
+    BLUE = "\033[38;5;24m"
+    GREEN = "\033[38;5;22m"
+    LIGHT_GRAY = "\033[38;5;250m"
+    DARK_GRAY = "\033[38;5;235m"
+    ORANGE = "\033[38;5;208m"  # Close to neon orange
+    BROWN = "\033[38;5;130m"
+    CYAN = "\033[36m"
+    RESET = "\033[0m"
+
+    # File to store portfolio data
+    PORTFOLIO_FILE = 'port.json'
+
+    # Load portfolio from JSON file
+    def load_portfolio():
         try:
-            with open(filename, 'r') as file:
-                return json.load(file)
+            with open(PORTFOLIO_FILE, 'r') as f:
+                portfolio = json.load(f)
         except FileNotFoundError:
-            print(f"File {filename} not found. Initializing with empty portfolio.")
-            return {}
-        except json.JSONDecodeError:
-            print(f"Error decoding {filename}. Initializing with empty portfolio.")
-            return {}
+            portfolio = []
+        return portfolio
 
-    def save_portfolio(portfolio, filename='portfolio.json'):
-        with open(filename, 'w') as file:
-            json.dump(portfolio, file, indent=4)
+    # Save portfolio to JSON file
+    def save_portfolio(portfolio):
+        with open(PORTFOLIO_FILE, 'w') as f:
+            json.dump(portfolio, f, indent=4)
 
-    def main():
-        global portfolio
-        portfolio = load_portfolio()
+    # Function to add a stock to the portfolio
+    def add_stock_to_portfolio():
+        ticker = input("Enter stock ticker: ").upper()
+        cost_basis = float(input("Enter cost basis: "))
+        num_shares = float(input("Enter number of shares: "))
+        date_bought = input("Enter date bought (YYYY-MM-DD): ")
         
-        # Prompt the user for the number of years to plot
+        # Validate the date
         try:
-            years = float(input("Enter the number of years to plot: "))
-            plot_portfolio_performance_chart(years)
+            datetime.strptime(date_bought, '%Y-%m-%d')
         except ValueError:
-            print("Invalid input. Please enter a numeric value for years.")
-
-    def plot_portfolio_performance_chart(years):
-        import yfinance as yf
-        import numpy as np
-        import matplotlib.pyplot as plt
-        from datetime import datetime, timedelta
-
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=float(years * 365))  # Use float to handle fractional days
+            print("Invalid date format. Please enter the date as YYYY-MM-DD.")
+            return
         
-        # Filter out ticker "1"
-        tickers_to_plot = [ticker for ticker in portfolio if ticker != "1"]
-        total_portfolio_value = 0
-        asset_values = []
-        stock_labels = []
-        percent_changes = []
+        portfolio = load_portfolio()
+        portfolio.append({
+            'ticker': ticker,
+            'cost_basis': cost_basis,
+            'num_shares': num_shares,
+            'date_bought': date_bought
+        })
+        save_portfolio(portfolio)
+        print(f"Stock {ticker} added to portfolio.")
+
+    # Function to remove a stock from the portfolio
+    def remove_stock_from_portfolio():
+        ticker_to_remove = input("Enter the ticker of the stock you want to remove: ").upper()
+        portfolio = load_portfolio()
+        portfolio = [stock for stock in portfolio if stock['ticker'] != ticker_to_remove]
+        save_portfolio(portfolio)
+        print(f"Stock {ticker_to_remove} removed from portfolio.")
+
+    # Function to plot individual stock performance in a grid
+    def view_portfolio_performance(portfolio):
+        num_stocks = len(portfolio)
+        cols = 2  # Set the number of columns in the grid
+        rows = (num_stocks + 1) // cols  # Calculate the number of rows needed
         
-        # Iterate over each stock in the portfolio
-        for ticker in tickers_to_plot:
+        # Create subplots with a dark background
+        plt.style.use('dark_background')
+        fig, axes = plt.subplots(rows, cols, figsize=(14, 7 * rows))
+        axes = axes.flatten()  # Flatten the axes array for easier iteration
+
+        for i, stock in enumerate(portfolio):
+            ticker = stock['ticker']
+            date_bought = stock['date_bought']
+            num_shares = stock['num_shares']
+
+            # Fetch historical stock data using yfinance
             try:
-                stock_data = yf.download(ticker, start=start_date, end=end_date)
-                
+                stock_data = yf.download(ticker, start=date_bought)[['Adj Close']]
                 if stock_data.empty:
-                    print(f"No data found for ticker: {ticker}")
+                    print(f"No data available for {ticker} since {date_bought}.")
                     continue
 
-                # Calculate the stock's total value in the portfolio
-                last_close_price = stock_data['Close'].iloc[-1]
-                asset_value = portfolio[ticker]['shares'] * last_close_price
-                asset_values.append(asset_value)
-                stock_labels.append(ticker)
-                total_portfolio_value += asset_value
-                
-                # Calculate percent change over the entered years
-                percent_change = ((last_close_price - stock_data['Close'].iloc[0]) / stock_data['Close'].iloc[0]) * 100
-                percent_changes.append(percent_change)
-                
+                # Calculate the value for each day using .loc
+                stock_data.loc[:, 'Value'] = stock_data['Adj Close'] * num_shares
+
+                # Plot stock performance on the respective subplot
+                axes[i].plot(stock_data.index, stock_data['Adj Close'], label=f"{ticker} Adj Close", color='cyan')
+
+                # Customize each subplot's aesthetics
+                axes[i].set_title(f"{ticker} Performance Since {date_bought}", color='gray')
+                axes[i].set_xlabel("Date", color='gray')
+                axes[i].set_ylabel("Adjusted Close", color='gray')
+                axes[i].set_xticklabels([])  # Hide x-axis dates
+                axes[i].grid(True, color='gray')
+                axes[i].spines['top'].set_color('gray')
+                axes[i].spines['bottom'].set_color('gray')
+                axes[i].spines['left'].set_color('gray')
+                axes[i].spines['right'].set_color('gray')
+                axes[i].tick_params(axis='y', colors='gray')
+                axes[i].legend()
+
             except Exception as e:
-                print(f"Error processing {ticker}: {e}")
-        
-        # Normalize asset values for the pie chart
-        asset_values = np.array(asset_values)
-        asset_percentages = (asset_values / total_portfolio_value * 100).round()  # Round to nearest whole number
-        
-        # Create the pie chart for asset allocation
-        fig, axs = plt.subplots(1, 2, figsize=(16, 8), facecolor='black')
-        
-        colors = plt.cm.viridis(np.linspace(0, 1, len(tickers_to_plot)))  # Generate a colormap
-        wedges, texts = axs[0].pie(asset_percentages, labels=None, startangle=90, colors=colors)
-        
-        axs[0].set_title('Portfolio Asset Allocation', color='white')
-        
-        # Format legend with tickers and their percentages
-        legend_labels = [f"{ticker}: {percent:.0f}%" for ticker, percent in zip(stock_labels, asset_percentages)]
-        axs[0].legend(wedges, legend_labels, title="Stocks", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), fontsize=10, title_fontsize=12)
-        
-        # Plot the bar chart for percent change over the period
-        bars = axs[1].bar(stock_labels, percent_changes, color=colors, edgecolor='white')
-        axs[1].set_title(f'Portfolio Performance Over {years:.1f} Year(s)', color='white')
-        axs[1].set_xlabel('Stock Ticker', color='orange')
-        axs[1].set_ylabel('%', color='orange')
+                print(f"Error fetching data for {ticker}: {e}")
 
-        # Add data labels above bars
-        for bar, percent in zip(bars, percent_changes):
-            height = bar.get_height()
-            axs[1].text(bar.get_x() + bar.get_width() / 2, height, f'{percent:.2f}%', ha='center', va='bottom', color='white')
-        
-        # Set axes and grid lines to orange
-        axs[1].tick_params(axis='x', colors='orange')
-        axs[1].tick_params(axis='y', colors='orange')
-        axs[1].grid(color='orange', linestyle='--', linewidth=0.5)
+        # Remove any unused subplots
+        for j in range(i + 1, len(axes)):
+            fig.delaxes(axes[j])
 
-        # Set background and tick colors for both plots
-        for ax in axs:
-            ax.set_facecolor('black')
-        
+        # Adjust layout for better spacing between subplots
         plt.tight_layout()
         plt.show(block=False)
+
+
+    # Function to plot total portfolio performance
+    def view_total_portfolio_performance(portfolio):
+        all_data = []
         
-        # Prompt to add or remove a position or do nothing
+        for stock in portfolio:
+            ticker = stock['ticker']
+            date_bought = stock['date_bought']
+            num_shares = stock['num_shares']
+
+            # Fetch historical stock data using yfinance
+            try:
+                stock_data = yf.download(ticker, start=date_bought)[['Adj Close']]
+                if stock_data.empty:
+                    print(f"No data available for {ticker} since {date_bought}.")
+                    continue
+
+                # Make a copy to avoid SettingWithCopyWarning
+                stock_data = stock_data.copy()
+
+                # Multiply adjusted close by number of shares held to get the value for each day
+                stock_data['Value'] = stock_data['Adj Close'] * num_shares
+                all_data.append(stock_data[['Value']])
+
+            except Exception as e:
+                print(f"Error fetching data for {ticker}: {e}")
+                continue
+
+        if not all_data:
+            print("No data available for the portfolio.")
+            return
+
+        # Combine all stock data into a single DataFrame
+        portfolio_data = pd.concat(all_data, axis=1)
+        
+        # Calculate the total value of the portfolio by summing the values of each stock for each day
+        portfolio_data['Total Value'] = portfolio_data.sum(axis=1)
+
+        # Set dark background and plot the portfolio total value over time
+        plt.style.use('dark_background')
+        plt.figure(figsize=(10, 6))
+        
+        plt.plot(portfolio_data.index, portfolio_data['Total Value'], label="Total Portfolio", color='cyan')
+        
+        # Customize chart aesthetics
+        plt.title("Portfolio Total Value Performance", color='gray')
+        plt.xlabel("Date", color='gray')
+        plt.ylabel("Total Value", color='gray')
+        
+        # Hide x-axis dates
+        plt.gca().set_xticklabels([])
+        
+        # Set gridlines and labels to gray
+        plt.grid(True, color='gray')
+        plt.setp(plt.gca().spines.values(), color='gray')
+        plt.setp(plt.gca().get_yticklabels(), color='gray')
+        
+        # Display the legend
+        plt.legend()
+        
+        # Show the plot
+        plt.show(block=False)
+
+    # Main menu
+    def main():
         while True:
-            action = input("Do you want to (A)dd a position, (R)emove a position, or (N)othing? ").strip().upper()
-            if action == 'A':
-                add_position()
-            elif action == 'R':
-                remove_position()
-            elif action == 'N':
-                print("No changes made to the portfolio.")
+            print(f"\n{RED}[1]{RESET} {CYAN}add to port{RESET}")
+            print(f"{RED}[2]{RESET} {CYAN}edit port{RESET}")
+            print(f"{RED}[3]{RESET} {CYAN}ind. stock performance{RESET}")
+            print(f"{RED}[4]{RESET} {CYAN}total portfolio performance{RESET}")
+            print(f"{RED}[5]{RESET} {CYAN}exit{RESET}")
+
+            choice = input(f"{LIGHT_GRAY}> ")
+
+            if choice == '1':
+                add_stock_to_portfolio()
+            elif choice == '2':
+                remove_stock_from_portfolio()
+            elif choice == '3':
+                portfolio = load_portfolio()
+                if portfolio:
+                    view_portfolio_performance(portfolio)
+                else:
+                    print("Your portfolio is empty.")
+            elif choice == '4':
+                portfolio = load_portfolio()
+                if portfolio:
+                    view_total_portfolio_performance(portfolio)
+                else:
+                    print("Your portfolio is empty.")
+            elif choice == '5':
+                print("Exiting...")
                 break
             else:
-                print("Invalid option. Please choose (A)dd, (R)emove, or (N)othing.")
-
-    def add_position():
-        ticker = input("Enter ticker: ")
-        cost_basis = float(input("Enter cost basis: "))
-        shares = float(input("Enter number of shares: "))
-        portfolio[ticker] = {'shares': shares, 'cost_basis': cost_basis}
-        save_portfolio(portfolio)
-        print(f"Added {ticker} to portfolio.")
-
-    def remove_position():
-        ticker = input("Enter ticker to remove: ")
-        if ticker in portfolio:
-            del portfolio[ticker]
-            save_portfolio(portfolio)
-            print(f"Removed {ticker} from portfolio.")
-        else:
-            print("Ticker not found in portfolio.")
-
-    def save_portfolio(portfolio, filename='portfolio.json'):
-        with open(filename, 'w') as file:
-            json.dump(portfolio, file, indent=4)
+                print("Invalid option. Please try again.")
 
     if __name__ == "__main__":
         main()
+
 
 
 
@@ -305,11 +383,12 @@ def gm():
     ORANGE = "\033[38;5;130m"
     LIME_GREEN = '\033[1;32m'
     NEON_RED = '\033[91m'
+    CYAN = "\033[38;5;250m"
+    MAGENTA = '\033[35m'
     WHITE = '\033[97m'
     GRAY = "\033[38;5;250m"
-    DARK_GRAY = "\033[30m"  # Added dark gray color for table gridlines
-    BLUE = "\033[38;5;24m"  # Header color
-    RESET = '\033[30m'
+    BLUE = "\033[38;5;24m"
+    RESET = '\033[0m'
 
     def get_greeting():
         now = datetime.now()
@@ -327,11 +406,10 @@ def gm():
 
     def get_stock_data(ticker):
         stock = yf.Ticker(ticker)
-        data = stock.history(period='5d', interval='1d')  # Fetching the last 2 days of data
+        data = stock.history(period='5d', interval='1d')
         
-        # Latest price and previous day's close
         latest_price = data['Close'].iloc[-1] if not data.empty else None
-        previous_close = data['Close'].iloc[-2] if len(data) > 1 else None  # Last available closing price
+        previous_close = data['Close'].iloc[-2] if len(data) > 1 else None
         
         if latest_price is not None and previous_close is not None:
             percent_change_today = ((latest_price - previous_close) / previous_close) * 100
@@ -375,45 +453,36 @@ def gm():
 
     def colorize_percent(percent):
         if isinstance(percent, (int, float)):
-            return f"{LIME_GREEN}{percent:.2f}%{RESET}" if percent >= 0 else f"{NEON_RED}{percent:.2f}%{RESET}"
-        return percent
-
-    def color_structural_gridlines(table_string, color):
-        lines = table_string.split('\n')
-        colored_lines = []
-        for i, line in enumerate(lines):
-            if i == 0 or i == len(lines) - 1 or set(line) <= set('+-=|'):  # First, last, or separator lines
-                colored_line = color + ''.join([char if char in '+-=|' else RESET + char + color for char in line]) + RESET
-            else:
-                colored_line = color + '|' + RESET + line[1:-1] + color + '|' + RESET
-            colored_lines.append(colored_line)
-        return '\n'.join(colored_lines)
+            color = LIME_GREEN if percent >= 0 else NEON_RED
+            return f"{color}{percent:>6.2f}%{RESET}"
+        return str(percent).rjust(7)
 
     def print_performance(performance, total_value):
-        headers = [f"{GRAY}Ticker{RESET}", f"{GRAY}Shares{RESET}", f"{GRAY}Cost Basis{RESET}", f"{GRAY}Current Price{RESET}", f"{GRAY}Δ{RESET}", f"{GRAY}1D %Δ{RESET}", f"{GRAY}Value{RESET}"]
-        table_data = []
-
+        headers = [f"{CYAN}Ticker{RESET}", f"{CYAN}Shares{RESET}", f"{CYAN}Cost Basis{RESET}", 
+                f"{CYAN}Current Price{RESET}", f"{CYAN}Δ{RESET}", f"{CYAN}1D %Δ{RESET}", f"{CYAN}Value{RESET}"]
+        
+        rows = []
         for ticker, data in performance.items():
             row = [
                 f"{ORANGE}{ticker.upper()}{RESET}",
-                f"{ORANGE}{data['shares']}{RESET}",
-                f"{LIME_GREEN}${data['cost_basis']:.2f}{RESET}",
-                f"{LIME_GREEN}${data['current_price']:.2f}" if data['current_price'] != 'N/A' else "N/A",
-                colorize_percent(data['percent_change']) if data['percent_change'] != 'N/A' else "N/A",
-                colorize_percent(data['percent_change_today']) if data['percent_change_today'] != 'N/A' else "N/A",
-                f"{LIME_GREEN}${data['value']:.2f}" if data['value'] != 'N/A' else "N/A"
+                f"{ORANGE}{data['shares']:.2f}{RESET}",
+                f"{ORANGE}${data['cost_basis']:.2f}{RESET}",
+                f"{LIME_GREEN}${data['current_price']:.2f}{RESET}" if isinstance(data['current_price'], float) else data['current_price'],
+                colorize_percent(data['percent_change']),
+                colorize_percent(data['percent_change_today']),
+                f"{ORANGE}${data['value']:.2f}{RESET}" if isinstance(data['value'], float) else data['value']
             ]
-            table_data.append(row)
+            rows.append(row)
 
-        table = tabulate(table_data, headers=headers, tablefmt="grid")
-        colored_table = color_structural_gridlines(table, DARK_GRAY)
-        print(colored_table)
-        print(f"\n {GRAY}Total Portfolio Value: ${total_value:.2f}")
+        table = tabulate(rows, headers, tablefmt="plain")
+        print(table)
+        print(f"\n{GRAY}Total Portfolio Value: ${total_value:.2f}{RESET}")
 
     # Main function logic
     if __name__ == "__main__":
         print(get_greeting())
-        portfolio_file = 'portfolio.json'  # Path to your portfolio.json file
+        print (" ")
+        portfolio_file = 'portfolio.json'
         portfolio = load_portfolio(portfolio_file)
         performance, total_value = calculate_performance(portfolio)
         print_performance(performance, total_value)
@@ -639,6 +708,7 @@ def sim():
 def sc():
     RED = "\033[91m"
     BLUE = "\033[38;5;24m"
+    CYAN = '\033[36m'
     #ORANGE = "\033[38;5;214m"
     #GREEN = "\033[38;5;22m"
     #LIGHT_GRAY = "\033[38;5;250m"
@@ -676,7 +746,7 @@ def sc():
                 return
 
             # Customize the market colors: up candles are dark blue, down candles are black
-            mc = mpf.make_marketcolors(up='lime', down='red', wick='inherit', edge='inherit', volume='darkblue')
+            mc = mpf.make_marketcolors(up='cyan', down='red', wick='inherit', edge='inherit', volume='darkblue')
 
             # Use the default style but with custom market colors
             s = mpf.make_mpf_style(base_mpf_style='nightclouds', marketcolors=mc)
@@ -753,13 +823,15 @@ def cc():
     from tabulate import tabulate
 
     # ANSI color codes
+    ORANGE = "\033[38;5;130m"
     LIME_GREEN = '\033[1;32m'
     NEON_RED = '\033[91m'
-    ORANGE = "\033[38;5;130m"  # orange color for commodity names and tickers
-    DARK_GRAY = "\033[30m"  # dark gray color for table gridlines
+    CYAN = '\033[36m'
+    MAGENTA = '\033[35m'
+    WHITE = '\033[97m'
     GRAY = "\033[38;5;250m"
-    BLUE = "\033[38;5;24m"  # color for header names
-    RESET = '\033[30m'
+    BLUE = "\033[38;5;24m"
+    RESET = '\033[0m'
 
     # Tickers for Commodities and Cryptocurrencies
     commodity_tickers = {
@@ -777,7 +849,8 @@ def cc():
 
     def colorize_percent(percent):
         if isinstance(percent, (int, float)):
-            return f"{LIME_GREEN}{percent:.2f}%{RESET}" if percent >= 0 else f"{NEON_RED}{percent:.2f}%{RESET}"
+            color = LIME_GREEN if percent >= 0 else NEON_RED
+            return f"{color}{percent:.2f}%{RESET}"
         return percent
 
     def calculate_percent_change(current_price, past_price):
@@ -797,7 +870,7 @@ def cc():
                     current_price = data['Close'].iloc[-1]
                     previous_close = data['Close'].iloc[-2] if len(data) > 1 else None
 
-                    percent_change_today = calculate_percent_change(current_price, previous_close)  # Changed to previous close
+                    percent_change_today = calculate_percent_change(current_price, previous_close)
                     
                     # 1 Year data
                     one_year_ago = data.index[-1] - pd.DateOffset(years=1)
@@ -817,19 +890,19 @@ def cc():
                 performance.append([
                     f"{ORANGE}{name}{RESET}",
                     f"{ORANGE}{ticker}{RESET}",
-                    f"{LIME_GREEN}${current_price:.2f}{RESET}" if isinstance(current_price, float) else f"{LIME_GREEN}{current_price}{RESET}",
-                    colorize_percent(percent_change_today) if isinstance(percent_change_today, float) else f"{LIME_GREEN}{percent_change_today}{RESET}",
-                    colorize_percent(percent_change_1y) if isinstance(percent_change_1y, float) else f"{LIME_GREEN}{percent_change_1y}{RESET}",
-                    colorize_percent(percent_change_5y) if isinstance(percent_change_5y, float) else f"{LIME_GREEN}{percent_change_5y}{RESET}"
+                    f"{ORANGE}${current_price:.2f}{RESET}" if isinstance(current_price, float) else f"{ORANGE}{current_price}{RESET}",
+                    colorize_percent(percent_change_today) if isinstance(percent_change_today, float) else f"{GRAY}{percent_change_today}{RESET}",
+                    colorize_percent(percent_change_1y) if isinstance(percent_change_1y, float) else f"{GRAY}{percent_change_1y}{RESET}",
+                    colorize_percent(percent_change_5y) if isinstance(percent_change_5y, float) else f"{GRAY}{percent_change_5y}{RESET}"
                 ])
             except Exception as e:
                 performance.append([
                     f"{ORANGE}{name}{RESET}",
                     f"{ORANGE}{ticker}{RESET}",
-                    f"{LIME_GREEN}N/A{RESET}",
-                    f"{LIME_GREEN}N/A{RESET}",
-                    f"{LIME_GREEN}N/A{RESET}",
-                    f"{LIME_GREEN}N/A{RESET}"
+                    f"{CYAN}N/A{RESET}",
+                    f"{GRAY}N/A{RESET}",
+                    f"{GRAY}N/A{RESET}",
+                    f"{GRAY}N/A{RESET}"
                 ])
                 print(f"Error retrieving data for {name}: {e}")
         return performance
@@ -837,26 +910,10 @@ def cc():
     # Get commodity data
     commodity_performance = get_data(commodity_tickers)
 
-    # Print performance table with dark gray gridlines
-    headers = [f"{GRAY}Commodity{RESET}", f"{GRAY}Ticker{RESET}", f"{GRAY}Price{RESET}", f"{GRAY}1D %Δ{RESET}", f"{GRAY}1Y %Δ{RESET}", f"{GRAY}5Y %Δ{RESET}"]
-    table = tabulate(commodity_performance, headers=headers, tablefmt="grid")
-
-    # Function to color only the structural gridlines
-    def color_structural_gridlines(table_string, color):
-        lines = table_string.split('\n')
-        colored_lines = []
-        for i, line in enumerate(lines):
-            if i == 0 or i == len(lines) - 1 or set(line) <= set('+-=|'):  # First, last, or separator lines
-                colored_line = color + ''.join([char if char in '+-=|' else RESET + char + color for char in line]) + RESET
-            else:
-                colored_line = color + '|' + RESET + line[1:-1] + color + '|' + RESET
-            colored_lines.append(colored_line)
-        return '\n'.join(colored_lines)
-
-    # Apply dark gray color to structural gridlines
-    colored_table = color_structural_gridlines(table, DARK_GRAY)
-
-    print(colored_table)
+    # Print performance table
+    headers = [f"{CYAN}Commodity{RESET}", f"{CYAN}Ticker{RESET}", f"{CYAN}Price{RESET}", f"{CYAN}1D %Δ{RESET}", f"{CYAN}1Y %Δ{RESET}", f"{CYAN}5Y %Δ{RESET}"]
+    table = tabulate(commodity_performance, headers=headers, tablefmt="plain")
+    print(table)
 
 
 
@@ -866,15 +923,17 @@ def wl():
     from tabulate import tabulate
 
     # ANSI color codes
+    ORANGE = "\033[38;5;130m"
     LIME_GREEN = '\033[1;32m'
     NEON_RED = '\033[91m'
+    CYAN = '\033[36m'
+    MAGENTA = '\033[35m'
+    WHITE = '\033[97m'
     GRAY = "\033[38;5;250m"
-    ORANGE = "\033[38;5;130m"  # orange color for commodity names and tickers
-    DARK_GRAY = "\033[30m"  # dark gray color for table gridlines
-    BLUE = "\033[38;5;24m"  # color for header names
-    RESET = '\033[30m'
+    BLUE = "\033[38;5;24m"
+    RESET = '\033[0m'
 
-    # Tickers for Companies
+    # Tickers for Commodities and Cryptocurrencies
     commodity_tickers = {
         "Interactive Brokers": "IBKR",
         "Zoom Video Communications": "ZM",
@@ -887,7 +946,8 @@ def wl():
 
     def colorize_percent(percent):
         if isinstance(percent, (int, float)):
-            return f"{LIME_GREEN}{percent:.2f}%{RESET}" if percent >= 0 else f"{NEON_RED}{percent:.2f}%{RESET}"
+            color = LIME_GREEN if percent >= 0 else NEON_RED
+            return f"{color}{percent:.2f}%{RESET}"
         return percent
 
     def calculate_percent_change(current_price, past_price):
@@ -907,7 +967,7 @@ def wl():
                     current_price = data['Close'].iloc[-1]
                     previous_close = data['Close'].iloc[-2] if len(data) > 1 else None
 
-                    percent_change_today = calculate_percent_change(current_price, previous_close)  # Changed to previous close
+                    percent_change_today = calculate_percent_change(current_price, previous_close)
                     
                     # 1 Year data
                     one_year_ago = data.index[-1] - pd.DateOffset(years=1)
@@ -927,47 +987,31 @@ def wl():
                 performance.append([
                     f"{ORANGE}{name}{RESET}",
                     f"{ORANGE}{ticker}{RESET}",
-                    f"{LIME_GREEN}${current_price:.2f}{RESET}" if isinstance(current_price, float) else f"{LIME_GREEN}{current_price}{RESET}",
-                    colorize_percent(percent_change_today) if isinstance(percent_change_today, float) else f"{LIME_GREEN}{percent_change_today}{RESET}",
-                    colorize_percent(percent_change_1y) if isinstance(percent_change_1y, float) else f"{LIME_GREEN}{percent_change_1y}{RESET}",
-                    colorize_percent(percent_change_5y) if isinstance(percent_change_5y, float) else f"{LIME_GREEN}{percent_change_5y}{RESET}"
+                    f"{ORANGE}${current_price:.2f}{RESET}" if isinstance(current_price, float) else f"{ORANGE}{current_price}{RESET}",
+                    colorize_percent(percent_change_today) if isinstance(percent_change_today, float) else f"{GRAY}{percent_change_today}{RESET}",
+                    colorize_percent(percent_change_1y) if isinstance(percent_change_1y, float) else f"{GRAY}{percent_change_1y}{RESET}",
+                    colorize_percent(percent_change_5y) if isinstance(percent_change_5y, float) else f"{GRAY}{percent_change_5y}{RESET}"
                 ])
             except Exception as e:
                 performance.append([
                     f"{ORANGE}{name}{RESET}",
                     f"{ORANGE}{ticker}{RESET}",
-                    f"{LIME_GREEN}N/A{RESET}",
-                    f"{LIME_GREEN}N/A{RESET}",
-                    f"{LIME_GREEN}N/A{RESET}",
-                    f"{LIME_GREEN}N/A{RESET}"
+                    f"{CYAN}N/A{RESET}",
+                    f"{GRAY}N/A{RESET}",
+                    f"{GRAY}N/A{RESET}",
+                    f"{GRAY}N/A{RESET}"
                 ])
                 print(f"Error retrieving data for {name}: {e}")
         return performance
 
-    # Get company data
+    # Get commodity data
     commodity_performance = get_data(commodity_tickers)
 
-    # Print performance table with dark gray gridlines
-    headers = [f"{GRAY}Company{RESET}", f"{GRAY}Ticker{RESET}", f"{GRAY}Current Price{RESET}", f"{GRAY}1D %Δ{RESET}", f"{GRAY}1Y %Δ{RESET}", f"{GRAY}5Y %Δ{RESET}"]
-    table = tabulate(commodity_performance, headers=headers, tablefmt="grid")
-
-    # Function to color only the structural gridlines
-    def color_structural_gridlines(table_string, color):
-        lines = table_string.split('\n')
-        colored_lines = []
-        for i, line in enumerate(lines):
-            if i == 0 or i == len(lines) - 1 or set(line) <= set('+-=|'):  # First, last, or separator lines
-                colored_line = color + ''.join([char if char in '+-=|' else RESET + char + color for char in line]) + RESET
-            else:
-                colored_line = color + '|' + RESET + line[1:-1] + color + '|' + RESET
-            colored_lines.append(colored_line)
-        return '\n'.join(colored_lines)
-
-    # Apply dark gray color to structural gridlines
-    colored_table = color_structural_gridlines(table, DARK_GRAY)
-
-    print(colored_table)
-
+    # Print performance table
+    headers = [f"{CYAN}Commodity{RESET}", f"{CYAN}Ticker{RESET}", f"{CYAN}Price{RESET}", f"{CYAN}1D %Δ{RESET}", f"{CYAN}1Y %Δ{RESET}", f"{CYAN}5Y %Δ{RESET}"]
+    table = tabulate(commodity_performance, headers=headers, tablefmt="plain")
+    print(table)
+    
 
 
 def des():
@@ -1835,26 +1879,6 @@ def portchart():
     plt.tight_layout(pad=2.0)  # Adjust padding to fit the plots
     plt.show(block=False)
 
-def sec():
-    import webbrowser
-
-    def open_sec_filing(ticker, filing_type):
-        base_url = "https://www.sec.gov/cgi-bin/browse-edgar"
-        if filing_type == 'k':
-            url = f"{base_url}?action=getcompany&CIK={ticker}&type=10-k&dateb=&owner=exclude&count=40"
-        elif filing_type == 'q':
-            url = f"{base_url}?action=getcompany&CIK={ticker}&type=10-q&dateb=&owner=exclude&count=40"
-        else:
-            print("Invalid filing type. Please enter 'k' for 10-K or 'q' for 10-Q.")
-            return
-        webbrowser.open(url)
-        print(f"Opening {ticker} {filing_type}")
-    def main():
-        ticker = input("Enter ticker symbol: ").strip().upper()
-        filing_type = input("Enter 'k' for 10-K or 'q' for 10-Q: ").strip().lower()
-        open_sec_filing(ticker, filing_type)
-    if __name__ == "__main__":
-        main()
 
 def gain():
     import requests
@@ -2205,7 +2229,7 @@ def mnl():
                 print(f"{CYAN}{wrap_text(item['title'])}{RESET}")
                 seen_titles.add(item['title'])
             if 'summary' in item:
-                print(f"{BROWN}{wrap_text(item['summary'])}{RESET}")
+                print(f"{GRAY}{wrap_text(item['summary'])}{RESET}")
                 seen_summaries.add(item['summary'])
             if 'timestamp' in item:
                 print(f"{BROWN}Timestamp: {item['timestamp']}{RESET}")
@@ -2300,6 +2324,7 @@ def rtc():
 
     # Define the function to fetch and update data
     def fetch_data(ticker):
+        # Fetch 1 day of data at 1-minute intervals
         df = yf.download(tickers=ticker, period='1d', interval='1m')
         return df
 
@@ -2319,7 +2344,7 @@ def rtc():
                 fontsize=10, verticalalignment='top', color='orange')
 
         # Set title and labels
-        ax[0].set_title(f'{ticker} Live Price', color='grey', fontsize = 10)
+        ax[0].set_title(f'{ticker} Live Price', color='orange', fontsize=10)
         ax[0].set_xlabel('Time', color='grey')
         ax[0].set_ylabel('Price ($)', color='grey')
 
@@ -2338,9 +2363,9 @@ def rtc():
     # Get ticker input
     ticker = input("Enter a stock ticker symbol: ").upper()
 
-    # Define custom style with lime up candles and red down candles
+    # Define custom style with cyan up candles and red down candles
     custom_market_colors = mpf.make_marketcolors(
-        up='lime', down='red', 
+        up='cyan', down='red', 
         edge='inherit', wick='inherit', volume='in'
     )
     custom_style = mpf.make_mpf_style(
@@ -2351,8 +2376,12 @@ def rtc():
     fig, ax = plt.subplots(1, 1, figsize=(10, 6), facecolor='black', subplot_kw={'facecolor':'black'})
     ax = [ax]  # Wrap the ax in a list for `mpf.plot` compatibility
 
-    # Create the animation
-    ani = animation.FuncAnimation(fig, update_plot, interval=1000, cache_frame_data=False)
+    # Manually update the plot twice to ensure data is loaded
+    update_plot(0)
+    update_plot(0)
+
+    # Create the animation with 1-minute (60,000 ms) interval
+    ani = animation.FuncAnimation(fig, update_plot, interval=60000, cache_frame_data=False)
 
     # Set up plot appearance
     fig.patch.set_facecolor('black')  # Set figure background color
@@ -2360,6 +2389,7 @@ def rtc():
 
     # Display the chart
     plt.show()
+
 
 def snl():
     import requests
@@ -2685,39 +2715,52 @@ def si():
     # Print the formatted table
     print(BLACK + table + BLACK)
 
+def menu(): 
+    RED = "\033[91m"
+    BLUE = "\033[38;5;24m"
+    GREEN = "\033[38;5;22m"
+    LIGHT_GRAY = "\033[38;5;250m"
+    DARK_GRAY = "\033[38;5;235m"
+    ORANGE = "\033[38;5;208m"  # Close to neon orange
+    BROWN = "\033[38;5;130m"
+    CYAN = "\033[36m"
+    RESET = "\033[0m"
+    print(f"\n{CYAN}Menu {RESET}")
+    print(f"{LIGHT_GRAY}pulse:{RESET} {BROWN}[news] [cc] [gm] [wl] [wln] [pn] [cl] [gain] [ipo] [si] [qu]{RESET}")
+    print(f"{LIGHT_GRAY}read:{RESET} {BROWN}[sa] [ft] [sn] [wsb] [rtc] [mnl] [snl] [qm]{RESET}")
+    print(f"{LIGHT_GRAY}research:{RESET} {BROWN}[screen] [fund] [sec] [10k] [10q] [fs] [sta] [roic] [ins] [hol]{RESET}")
+    print(f"{LIGHT_GRAY}tools:{RESET} {BROWN}[dcf] [val] [pch] [sc] [ovs] [sim] [op] [port] [est] [des] [ch] [note]{RESET}")
+
 
 def main():
+    
     while True:
         RED = "\033[91m"
         BLUE = "\033[38;5;24m"
-        ORANGE = "\033[38;5;214m"
         GREEN = "\033[38;5;22m"
         LIGHT_GRAY = "\033[38;5;250m"
         DARK_GRAY = "\033[38;5;235m"
+        ORANGE = "\033[38;5;208m"  # Close to neon orange
         BROWN = "\033[38;5;130m"
         CYAN = "\033[36m"
         RESET = "\033[0m"
 
-        print(f"\n{RED}Terminal {RESET}")
-        print(f"{CYAN}pulse:{RESET} {BROWN}[news] [cc] [gm] [wl] [wln] [pn] [cl] [gain] [ipo] [si] [qu]{RESET}")
-        print(f"{CYAN}read:{RESET} {BROWN}[sa] [vic] [wsj] [nyt] [brns] [sema] [ft] [sn] [wsb]{RESET}")
-        print(f"{CYAN}research:{RESET} {BROWN}[screen] [fund] [sec] [10k] [10q] [fs] [sta] [roic] [ins] [hol]{RESET}")
-        print(f"{CYAN}tools:{RESET} {BROWN}[dcf] [val] [pch] [sc] [ovs] [sim] [op] [port] [est] [des] [ch] [note]{RESET}")
-        print(f"{CYAN}live:{RESET} {BROWN}[rtc] [mnl] [snl] [qm]")
+        print (" ")
 
-        print(f"{LIGHT_GRAY} ---- ")
-
-        choice = input("Choose an option: ").strip()
-        
+        # Prompt with autocompletion
+        choice = input("> ").strip()
         if choice == 'ch':
             plot()
         elif choice == 'news':
             import webbrowser
             webbrowser.open("https://finviz.com/news.ashx")
+            webbrowser.open("https://biztoc.com/")
         elif choice == 'cc':
             cc()
         elif choice == 'gm':
             gm()
+        elif choice == 'menu':
+            menu()
         elif choice == 'sa':
             ticker = input("Enter ticker (or press Enter to open homepage): ").strip().upper()
             if ticker:
@@ -2808,25 +2851,10 @@ def main():
             import webbrowser
             webbrowser.open("https://finviz.com/portfolio.ashx?v=1&pid=1911250")
         elif choice == 'sec':
-            sec()
-        elif choice == 'wsj':
+            ticker = input("Enter ticker: ").strip().upper()
+            url = f"https://www.sec.gov/edgar/search/?r=el#/dateRange=all&entityName={ticker}"
             import webbrowser
-            webbrowser.open("https://www.wsj.com/")
-        elif choice == 'nyt':
-            import webbrowser
-            webbrowser.open("https://www.nytimes.com/")
-        elif choice == 'brns':
-            import webbrowser
-            webbrowser.open("https://www.barrons.com/")
-        elif choice == 'sema':
-            import webbrowser
-            webbrowser.open("https://www.semafor.com/")
-        elif choice == 'ft':
-            import webbrowser
-            webbrowser.open("https://www.ft.com/")
-        elif choice == 'note':
-            import webbrowser
-            webbrowser.open("https://www.rapidtables.com/tools/notepad.html")
+            webbrowser.open(url)
         elif choice == 'gain':
             gain()
         elif choice == 'est':
