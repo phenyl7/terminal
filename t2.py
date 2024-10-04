@@ -149,7 +149,7 @@ def plot_stock_chart(ticker, period):
         data['RSI'] = calculate_rsi(data)
 
         market_colors = mpf.make_marketcolors(
-            up='cyan',    # Custom color for up candles
+            up='lime',    # Custom color for up candles
             down='red',    # Custom color for down candles
             wick='inherit',  # Custom color for wicks
             edge='white',
@@ -160,7 +160,7 @@ def plot_stock_chart(ticker, period):
         custom_style = mpf.make_mpf_style(
             base_mpf_style='default',
             marketcolors=market_colors,
-            rc={'font.size': 8, 'axes.labelsize': 8, 'xtick.labelsize': 8, 'ytick.labelsize': 8, 'text.color': '#c9c9c9', 'axes.labelcolor': '#c9c9c9', 'xtick.color': '#c9c9c9', 'ytick.color': '#c9c9c9', 'grid.color': '#2e2e2e'},
+            rc={'font.size': 8, 'axes.labelsize': 8, 'xtick.labelsize': 4, 'ytick.labelsize': 8, 'text.color': 'cyan', 'axes.labelcolor': 'cyan', 'xtick.color': 'cyan', 'ytick.color': 'cyan', 'grid.color': '#2e2e2e'},
             facecolor='#000000',  # Light gray background for the plot area
         )
 
@@ -185,7 +185,7 @@ def plot_stock_chart(ticker, period):
             returnfig=True,  # This is important to get the figure object
             addplot=add_rsi
         )
-        fig.suptitle(f'{ticker} {period}', fontsize=8, color='#c9c9c9')
+        fig.suptitle(f'{ticker} {period}', fontsize=8, color='orange')
         # Set the figure background color (change '#E6E6FA' to any color you prefer)
         fig.patch.set_facecolor('#000000')  # Light lavender color for the margins
 
