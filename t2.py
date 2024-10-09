@@ -14,8 +14,6 @@ def open_sec_link(ticker, form_type):
         url = f"https://www.sec.gov/edgar/search/?r=el#/dateRange=all&entityName={ticker}"
     elif form_type == "sta":
         url = f'https://stockanalysis.com/stocks/{ticker}'
-    elif form_type == "g":
-        url = f'https://stockcharts.com/sc3/ui/?s={ticker}'
     elif form_type == "q": 
         url = f'https://finance.yahoo.com/quote/{ticker}/'
     elif form_type == "n": 
@@ -102,20 +100,6 @@ def get_edgar_filings(cik, filing_type=None, count=10):
         return []
     
 
-def calculate_rsi(data, window=14):
-    """Calculate the Relative Strength Index (RSI)."""
-    delta = data['Close'].diff(1)
-    gain = delta.where(delta > 0, 0)
-    loss = -delta.where(delta < 0, 0)
-
-    avg_gain = gain.rolling(window=window, min_periods=1).mean()
-    avg_loss = loss.rolling(window=window, min_periods=1).mean()
-
-    rs = avg_gain / avg_loss
-    rsi = 100 - (100 / (1 + rs))
-
-    return rsi
-
 def plot_stock_chart(ticker, period):
     """Fetches and plots the stock price for the given ticker and period."""
     # Define period mapping for yfinance
@@ -126,7 +110,7 @@ def plot_stock_chart(ticker, period):
         "6m": {"period": "6mo", "interval": "1d"},
         "ytd": {"period": "ytd", "interval": "1d"},
         "1y": {"period": "1y", "interval": "1d"},
-        "5y": {"period": "5y", "interval": "1wk"},
+        "5y": {"period": "5y", "interval": "1wk"}
     }
 
     if period not in period_mapping:
@@ -146,32 +130,23 @@ def plot_stock_chart(ticker, period):
         mpf_data = data[['Open', 'High', 'Low', 'Close', 'Volume']]
 
         # Calculate the RSI
-        data['RSI'] = calculate_rsi(data)
+        #data['RSI'] = calculate_rsi(data)
 
         market_colors = mpf.make_marketcolors(
             up='lime',    # Custom color for up candles
             down='red',    # Custom color for down candles
             wick='inherit',  # Custom color for wicks
-            edge='white',
-            volume = '#000000'
+            edge='inherit',
+            volume = '#072840'
         )
 
         # Define a custom style to adjust font sizes and set plot area background color
         custom_style = mpf.make_mpf_style(
             base_mpf_style='default',
             marketcolors=market_colors,
-            rc={'font.size': 8, 'axes.labelsize': 8, 'xtick.labelsize': 4, 'ytick.labelsize': 8, 'text.color': 'cyan', 'axes.labelcolor': 'cyan', 'xtick.color': 'cyan', 'ytick.color': 'cyan', 'grid.color': '#2e2e2e'},
+            rc={'font.size': 8, 'axes.labelsize': 8, 'xtick.labelsize': 4, 'ytick.labelsize': 8, 'text.color': 'white', 'axes.labelcolor': 'white', 'xtick.color': 'white', 'ytick.color': 'white', 'grid.color': '#2e2e2e'},
             facecolor='#000000',  # Light gray background for the plot area
         )
-
-        # Create the RSI subplot
-        add_rsi = [
-            mpf.make_addplot(data['RSI'], panel=2, color='#c9c9c9', ylabel='RSI'),
-            mpf.make_addplot([70] * len(data), panel=2, color='red', linestyle='--'),  # Red line at 70
-            mpf.make_addplot([30] * len(data), panel=2, color='green', linestyle='--'),  # Green line at 30
-            mpf.make_addplot(data['RSI'].where(data['RSI'] >= 70), panel=2, color='cyan', alpha=1),  # Area above 70
-            mpf.make_addplot(data['RSI'].where(data['RSI'] <= 30), panel=2, color='cyan', alpha=1)  # Area below 30
-        ]
 
         # Plot the data with reduced text size and return the figure
         fig, axes = mpf.plot(
@@ -181,9 +156,8 @@ def plot_stock_chart(ticker, period):
             volume=True,
             tight_layout=True,
             scale_padding=dict(left=0.7, top=1, right=1.5),
-            figsize=(10, 8),  # Adjust the figure size as needed
+            figsize=(8, 6),  # Adjust the figure size as needed
             returnfig=True,  # This is important to get the figure object
-            addplot=add_rsi
         )
         fig.suptitle(f'{ticker} {period}', fontsize=8, color='orange')
         # Set the figure background color (change '#E6E6FA' to any color you prefer)
@@ -196,6 +170,11 @@ def plot_stock_chart(ticker, period):
         print(f"Failed to download: {ticker}. Error: {e}")
 
 
+def search_investor_relations(ticker):
+    """Searches for the investor relations page for a given stock ticker."""
+    search_url = f"https://www.google.com/search?q={ticker}+investor+relations"
+    webbrowser.open(search_url)
+    print(f"Searching Investor Relations page for {ticker.upper()}...")
 
 
 def print_commands():
@@ -211,7 +190,7 @@ def print_commands():
         "ticker fa": "Open Financials page for the specified ticker.",
         "ticker sa": "open seeking alpha link for stock",
         "ticker fv": "open finviz link for stock",
-        "ticker hds": "open openinsider link for stock",
+        "ticker hds": "open whalewisdom link for stock",
         "ticker ins": "open openinsider link for stock",
         "ticker g 1d/5d/1mo/3m/6m/ytd/1y/5y": "Plot a candlestick chart for the specified period",
         "?": "Display this help message."
@@ -231,13 +210,16 @@ def main():
         elif len(user_input) < 1:
             print("No input provided.")
             continue
-        
+
         ticker = user_input[0].upper()
 
-        # Check if the command is for SEC links or filings
+        # Handle SEC links or filings
         if len(user_input) == 2:
             form_type = user_input[1].lower()
-            open_sec_link(ticker, form_type)
+            if form_type == 'ir':
+                search_investor_relations(ticker)
+            else:
+                open_sec_link(ticker, form_type)
         elif len(user_input) == 3:
             if user_input[1].lower() == 'g' and user_input[2].lower() in ["1d", "5d", "1mo", "3m", "6m", "ytd", "1y", "5y"]:
                 period = user_input[2].lower()
@@ -253,5 +235,7 @@ def main():
                 else:
                     print(f"CIK for ticker '{ticker}' not found.")
 
+
 if __name__ == "__main__":
     main()
+
